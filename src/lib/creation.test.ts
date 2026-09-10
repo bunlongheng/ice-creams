@@ -133,6 +133,15 @@ describe("creationReducer", () => {
     ).toEqual(["style", "flavor", "vessel", "topping"]);
   });
 
+  it("keeps the flavour array stable when the same vessel is picked again", () => {
+    const built = build(
+      { type: "setStyle", id: "scoop" },
+      { type: "toggleFlavor", id: "vanilla" },
+      { type: "setVessel", id: "cup" },
+    );
+    expect(creationReducer(built, { type: "setVessel", id: "cup" }).flavors).toBe(built.flavors);
+  });
+
   it("keeps the flavour and topping arrays stable when only the step changes", () => {
     const built = build(
       { type: "setStyle", id: "scoop" },

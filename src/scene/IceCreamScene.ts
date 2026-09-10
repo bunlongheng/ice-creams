@@ -173,7 +173,7 @@ export class IceCreamScene {
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
     this.motionQuery.removeEventListener("change", this.onMotionPreferenceChange);
 
-    disposeObject(this.scene);
+    disposeObject(this.scene, { materials: true });
     this.sparkles.dispose();
     // The environment map lives in a render target; disposing the texture alone
     // leaves the target's GL memory behind.

@@ -109,8 +109,11 @@ export function creationReducer(state: Creation, action: CreationAction): Creati
     case "setVessel": {
       if (!isVesselId(action.id)) return state;
       const next = { ...state, vessel: action.id, step: "topping" as Step };
-      // A cake cone holds fewer scoops than a cup - trim from the bottom.
-      return { ...next, flavors: next.flavors.slice(-flavorCapacity(next)) };
+      // A cake cone holds fewer scoops than a cup - trim from the bottom. Keep
+      // the same array when nothing is trimmed, so the 3D scene can skip a
+      // rebuild when the child re-taps the vessel she already chose.
+      const capacity = flavorCapacity(next);
+      return next.flavors.length > capacity ? { ...next, flavors: next.flavors.slice(-capacity) } : next;
     }
 
     case "toggleTopping": {
