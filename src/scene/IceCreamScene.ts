@@ -155,9 +155,10 @@ export class IceCreamScene {
     }
 
     // Measure what was actually built - an egg carton is far wider than a cone.
+    // The turntable spins, so the diagonal is what has to fit, not the width.
     const bounds = new THREE.Box3().setFromObject(this.dessert);
     const size = bounds.getSize(new THREE.Vector3());
-    this.halfWidth = Math.max(size.x, size.z) / 2;
+    this.halfWidth = Math.hypot(size.x, size.z) / 2;
 
     this.popTime = 0;
     this.dirty = true;
@@ -247,7 +248,6 @@ export class IceCreamScene {
     const aspect = this.camera.aspect || 1;
     const target = this.crownY * 0.52;
     const halfHeight = this.crownY * 0.6;
-    // The turntable spins, so the widest axis can swing into view either way.
     const halfWidth = Math.max(this.halfWidth, 0.8);
 
     // Fit the dessert to whichever axis is tighter, then leave a little air.
