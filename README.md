@@ -42,7 +42,11 @@ she sees. There is no reading required - every button is a picture.
 
 - **Pictures, not words.** Every choice is a hand-drawn SVG of the real thing.
 - **Big targets.** The choice buttons are 88px tall and every control clears 44px, down to a 320px screen.
-- **No dead ends.** Picking a 7th topping drops the oldest one instead of disabling the button.
+- **No dead ends.** Picking a 7th topping drops the oldest one instead of disabling the button, and a step
+  is only offered once the answers it needs are in.
+- **Double taps do not punish.** A toddler taps twice while the screen is still moving, so a tap that lands
+  within 400ms of a change is ignored - and the serve holds that guard for 1.2s so the ta-da cannot be
+  tapped away.
 - **No way to break it.** No menus, no settings, no external links, no in-app purchases, no network calls.
 - **Sound that can be turned off.** All audio is synthesised in the browser and the mute state is remembered.
 - **Accessible.** Real button semantics, `aria-pressed` state, visible focus rings, focus moved to each new
