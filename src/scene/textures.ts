@@ -75,17 +75,21 @@ export const swirlTexture = (base: string, ribbon: string): THREE.Texture =>
     ctx.fillRect(0, 0, size, size);
     ctx.strokeStyle = ribbon;
     ctx.lineCap = "round";
-    ctx.lineWidth = size / 12;
-    for (let i = 0; i < 4; i++) {
-      const offset = (i / 4) * size;
+    // Thin, soft ribbons read as a swirl folded through the ice cream; thick
+    // ones read as paint.
+    ctx.globalAlpha = 0.75;
+    for (let i = 0; i < 3; i++) {
+      ctx.lineWidth = size / (20 + i * 6);
+      const offset = (i / 3) * size;
       ctx.beginPath();
       for (let x = 0; x <= size; x += 4) {
-        const y = ((offset + x * 0.9 + Math.sin(x / 26) * size * 0.06) % size) + 0;
+        const y = (offset + x * 0.9 + Math.sin(x / 26) * size * 0.06) % size;
         if (x === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
       ctx.stroke();
     }
+    ctx.globalAlpha = 1;
   });
 
 /** Fine flecks - vanilla bean, birthday-cake confetti. */
