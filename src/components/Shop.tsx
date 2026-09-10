@@ -45,10 +45,17 @@ export function Shop() {
   const muted = useSyncExternalStore(sounds.subscribe, sounds.isMuted, sounds.isMutedOnServer);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const lastStep = useRef(creation.step);
-  // A toddler taps twice in the time the screen takes to change. Ignore the
-  // second tap so it cannot undo the celebration or hit whatever moved under it.
-  const stepChangedAt = useRef(0);
-  const settled = () => Date.now() - stepChangedAt.current > 400;
+  /**
+   * A toddler taps twice in the time the screen takes to change. Everything that
+   * moves the screen sets a short guard, synchronously at dispatch time, so the
+   * second tap cannot hit whatever slid under the finger - and the serve sets a
+   * longer one, because the ta-da is the reward and should not be tappable away.
+   */
+  const guardUntil = useRef(0);
+  const guard = (ms: number) => {
+    guardUntil.current = Date.now() + ms;
+  };
+  const settled = () => Date.now() >= guardUntil.current;
 
   // Each step swaps the whole grid, so send focus (and the screen reader) to the
   // new question instead of dropping focus on the unmounted button. Not on first
@@ -56,13 +63,12 @@ export function Shop() {
   useEffect(() => {
     const changed = lastStep.current !== creation.step;
     lastStep.current = creation.step;
-    if (!changed) return;
-    stepChangedAt.current = Date.now();
-    if (creation.step !== "serve") headingRef.current?.focus();
+    if (changed && creation.step !== "serve") headingRef.current?.focus();
   }, [creation.step]);
 
   const pick = useCallback((action: CreationAction) => {
     if (!settled()) return;
+    guard(400);
     sounds.play("pick");
     dispatch(action);
   }, []);
@@ -76,6 +82,7 @@ export function Shop() {
     if (!settled()) return;
     switch (step) {
       case "style":
+        guard(400);
         sounds.play("scoop");
         dispatch({ type: "setStyle", id });
         break;
@@ -84,6 +91,7 @@ export function Shop() {
         dispatch({ type: "toggleFlavor", id });
         break;
       case "vessel":
+        guard(400);
         sounds.play("pick");
         dispatch({ type: "setVessel", id });
         break;
@@ -100,12 +108,15 @@ export function Shop() {
 
   const serve = useCallback(() => {
     if (!settled()) return;
+    // Long enough to watch the confetti before anything responds again.
+    guard(1200);
     sounds.play("serve");
     dispatch({ type: "serve" });
   }, []);
 
   const startOver = useCallback(() => {
     if (!settled()) return;
+    guard(400);
     sounds.play("reset");
     dispatch({ type: "startOver" });
   }, []);
