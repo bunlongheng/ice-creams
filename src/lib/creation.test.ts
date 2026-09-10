@@ -9,9 +9,10 @@ import {
   isServable,
   reachableSteps,
   type Creation,
+  type CreationAction,
 } from "./creation";
 
-const build = (...actions: Parameters<typeof creationReducer>[1][]): Creation =>
+const build = (...actions: CreationAction[]): Creation =>
   actions.reduce(creationReducer, emptyCreation());
 
 describe("catalog", () => {
@@ -131,6 +132,11 @@ describe("creationReducer", () => {
         ),
       ),
     ).toEqual(["style", "flavor", "vessel", "topping"]);
+  });
+
+  it("treats resetting an untouched order as a no-op", () => {
+    const empty = emptyCreation();
+    expect(creationReducer(empty, { type: "startOver" })).toBe(empty);
   });
 
   it("keeps the flavour array stable when the same vessel is picked again", () => {

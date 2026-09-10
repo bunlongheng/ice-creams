@@ -4,7 +4,7 @@
  * first tap because browsers block audio before a gesture.
  */
 
-export type SoundName = "pick" | "scoop" | "sprinkle" | "pour" | "serve" | "reset";
+type SoundName = "pick" | "scoop" | "sprinkle" | "pour" | "serve" | "reset";
 
 const STORAGE_KEY = "ice-creams:muted";
 

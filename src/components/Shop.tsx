@@ -37,11 +37,15 @@ export function Shop() {
   const [creation, dispatch] = useReducer(creationReducer, undefined, emptyCreation);
   const muted = useSyncExternalStore(sounds.subscribe, sounds.isMuted, sounds.isMutedOnServer);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const lastStep = useRef(creation.step);
 
   // Each step swaps the whole grid, so send focus (and the screen reader) to the
-  // new question instead of dropping focus on the unmounted button.
+  // new question instead of dropping focus on the unmounted button. Not on first
+  // paint, and not on serve - the celebration takes focus there.
   useEffect(() => {
-    headingRef.current?.focus();
+    const changed = lastStep.current !== creation.step;
+    lastStep.current = creation.step;
+    if (changed && creation.step !== "serve") headingRef.current?.focus();
   }, [creation.step]);
 
   const toggleMuted = useCallback(() => {
@@ -111,7 +115,7 @@ export function Shop() {
 
   const served = creation.step === "serve";
   const canServe = isServable(creation);
-  const reachable = useMemo(() => reachableSteps(creation), [creation]);
+  const reachable = reachableSteps(creation);
 
   const customerLine = useMemo(() => {
     if (served) return CHEERS[creation.servedCount % CHEERS.length] ?? CHEERS[0];
@@ -176,12 +180,9 @@ export function Shop() {
             }}
           />
 
-          <h2
-            ref={headingRef}
-            tabIndex={-1}
-            aria-live="polite"
-            className="font-display text-xl leading-tight text-cocoa outline-none sm:text-2xl"
-          >
+          {/* Focusing the heading is what announces the new step - an extra
+              live region would read it a second time. */}
+          <h2 ref={headingRef} tabIndex={-1} className="font-display text-xl leading-tight text-cocoa outline-none sm:text-2xl">
             {STEP_TITLES[creation.step]}
           </h2>
 

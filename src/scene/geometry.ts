@@ -95,15 +95,13 @@ export function scoopGeometry(radius: number, seed: number): THREE.BufferGeometr
   // smooth normals and clean UVs for the swirl and speckle textures.
   const geometry = new THREE.SphereGeometry(radius, 72, 48);
   const position = geometry.getAttribute("position");
-  const vertex = new THREE.Vector3();
+  const direction = new THREE.Vector3();
 
   for (let i = 0; i < position.count; i++) {
-    vertex.fromBufferAttribute(position, i);
-    const direction = vertex.clone().normalize();
+    direction.fromBufferAttribute(position, i).normalize();
     const squash = direction.y < -0.45 ? (direction.y + 0.45) * 0.35 : 0;
-    vertex.copy(direction).multiplyScalar(radius * scoopBulge(direction, seed));
-    vertex.y -= squash * radius;
-    position.setXYZ(i, vertex.x, vertex.y, vertex.z);
+    const bulge = radius * scoopBulge(direction, seed);
+    position.setXYZ(i, direction.x * bulge, direction.y * bulge - squash * radius, direction.z * bulge);
   }
 
   position.needsUpdate = true;
@@ -194,9 +192,6 @@ export function disposeObject(root: THREE.Object3D, options: { materials?: boole
     if (child instanceof THREE.InstancedMesh) child.dispose();
     const mesh = child as Partial<THREE.Mesh>;
     mesh.geometry?.dispose();
-    if (!options.materials) return;
-    const material = mesh.material;
-    if (Array.isArray(material)) material.forEach((entry) => entry.dispose());
-    else material?.dispose();
+    if (options.materials) (mesh.material as THREE.Material | undefined)?.dispose();
   });
 }

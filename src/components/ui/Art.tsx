@@ -76,7 +76,7 @@ export function FlavorArt({ flavor }: { flavor: Flavor }) {
             [38, 34],
             [16, 31],
             [46, 18],
-          ].map(([cx, cy], index) => (
+          ].map(([cx = 0, cy = 0], index) => (
             <circle key={index} cx={cx} cy={cy} r={flavor.chunk === "cookie" ? 3.6 : 2.6} fill={flavor.chunkColor} />
           ))}
         {flavor.chunk === "speckle" &&
@@ -206,7 +206,7 @@ export function ToppingArt({ topping }: { topping: Topping }) {
           [39, 30],
           [30, 40],
           [43, 43],
-        ].map(([cx, cy], index) => (
+        ].map(([cx = 0, cy = 0], index) => (
           <ellipse key={index} cx={cx} cy={cy} rx="7" ry="5" fill={color} stroke={accent} strokeWidth="2" transform={`rotate(${index * 35} ${cx} ${cy})`} />
         ))}
       {kind === "fruit" && topping.id === "banana-slices" && (

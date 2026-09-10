@@ -3,10 +3,9 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import type { Dessert } from "@/lib/creation";
 import { disposeObject } from "./geometry";
 import { disposeMaterialCache } from "./materials";
-import { disposeTextureCache } from "./textures";
 import { buildIceCream } from "./iceCream";
 import { SparkleBurst } from "./sparkles";
-import { radialTexture } from "./textures";
+import { disposeTextureCache, radialTexture } from "./textures";
 import { addToppings } from "./toppings";
 import { buildVessel } from "./vessels";
 import { hashString } from "@/lib/random";
@@ -57,9 +56,11 @@ export class IceCreamScene {
 
     // A tiny room gives the ice cream real reflections without an HDR download.
     const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.environmentTarget = pmrem.fromScene(new RoomEnvironment(), 0.04);
+    const room = new RoomEnvironment();
+    this.environmentTarget = pmrem.fromScene(room, 0.04);
     this.scene.environment = this.environmentTarget.texture;
     this.scene.environmentIntensity = 0.5;
+    room.dispose();
     pmrem.dispose();
 
     this.scene.add(new THREE.HemisphereLight(0xfff3e0, 0xffd9e8, 0.6));

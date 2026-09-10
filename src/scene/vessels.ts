@@ -4,7 +4,7 @@ import { latheProfile } from "./geometry";
 import { coneMaterial, glassMaterial, plasticMaterial, sodaMaterial, stripedCupMaterial } from "./materials";
 
 /** Where the ice cream mounts once the vessel is built. */
-export interface BuiltVessel {
+interface BuiltVessel {
   group: THREE.Group;
   /** Height of the rim / cone mouth in world units. */
   topY: number;

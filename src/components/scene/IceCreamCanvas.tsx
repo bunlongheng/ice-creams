@@ -71,7 +71,7 @@ export function IceCreamCanvas({ creation }: IceCreamCanvasProps) {
   return (
     <canvas
       ref={canvasRef}
-      className="h-full w-full cursor-grab touch-pan-y active:cursor-grabbing"
+      className="h-full w-full cursor-grab touch-pan-y touch-pinch-zoom active:cursor-grabbing"
       role="img"
       aria-label={describeCreation(dessert)}
     />

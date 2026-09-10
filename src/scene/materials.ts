@@ -32,8 +32,10 @@ const tile = (texture: THREE.Texture, repeatX: number, repeatY: number): THREE.T
 
 export function iceCreamMaterial(flavor: Flavor): THREE.MeshPhysicalMaterial {
   return cached(`ice:${flavor.id}`, () => {
+    // A textured flavour carries its colour in the map, so the base tint is white.
+    const textured = flavor.chunk === "swirl" || flavor.chunk === "speckle";
     const material = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(flavor.color),
+      color: new THREE.Color(textured ? "#ffffff" : flavor.color),
       roughness: 0.5,
       metalness: 0,
       clearcoat: 0.8,
@@ -46,10 +48,8 @@ export function iceCreamMaterial(flavor: Flavor): THREE.MeshPhysicalMaterial {
 
     if (flavor.chunk === "swirl") {
       material.map = tile(swirlTexture(flavor.color, flavor.chunkColor), 2, 2);
-      material.color.set("#ffffff");
     } else if (flavor.chunk === "speckle") {
       material.map = tile(speckleTexture(flavor.color, flavor.chunkColor), 2, 2);
-      material.color.set("#ffffff");
     }
 
     return material;
@@ -135,6 +135,11 @@ export function sauceMaterial(color: string): THREE.MeshPhysicalMaterial {
   );
 }
 
+/**
+ * Note: three picks a shader variant per material *and* per object type, so a
+ * colour shared between a plain mesh and an instanced mesh costs one extra
+ * program. No two toppings collide today; keep it that way when adding colours.
+ */
 export function candyMaterial(color: string, translucent = false): THREE.MeshPhysicalMaterial {
   return cached(
     `candy:${color}:${translucent}`,

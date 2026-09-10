@@ -37,7 +37,6 @@ export function Celebration({ serveId, headline, onAgain }: CelebrationProps) {
     <div
       className="pointer-events-none absolute inset-0 z-20 overflow-hidden"
       role="status"
-      aria-label={headline}
     >
       {confetti.map((piece, index) => (
         <span

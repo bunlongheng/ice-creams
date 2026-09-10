@@ -4,11 +4,11 @@
  */
 
 export type StyleId = "soft" | "scoop";
-export type ChunkKind = "none" | "cookie" | "chip" | "speckle" | "swirl";
+type ChunkKind = "none" | "cookie" | "chip" | "speckle" | "swirl";
 export type VesselId = "cup" | "waffle-cone" | "cake-cone" | "sundae" | "float" | "waffle-bowl";
-export type ToppingKind = "sprinkle" | "crumb" | "chunk" | "chip" | "nut" | "fruit" | "gummy" | "sauce" | "cream" | "cherry";
+type ToppingKind = "sprinkle" | "crumb" | "chunk" | "chip" | "nut" | "fruit" | "gummy" | "sauce" | "cream" | "cherry";
 
-export interface ServeStyle {
+interface ServeStyle {
   id: StyleId;
   name: string;
   /** Spoken by the shop sign while this style is picked. */
@@ -25,7 +25,7 @@ export interface Flavor {
   chunk: ChunkKind;
 }
 
-export interface Vessel {
+interface Vessel {
   id: VesselId;
   name: string;
   /** How many scoops the vessel can hold when the scooped style is picked. */

@@ -5,7 +5,7 @@ import type { Anchor } from "./iceCream";
  * Scatters instanced copies of one shape over a dessert's surface anchors.
  * Used both for the bits mixed through the ice cream and for the toppings on top.
  */
-export interface ScatterOptions {
+interface ScatterOptions {
   count: number;
   geometry: THREE.BufferGeometry;
   material: THREE.Material;

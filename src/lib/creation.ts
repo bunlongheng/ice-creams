@@ -18,7 +18,7 @@ export type Step = (typeof STEPS)[number];
 /** A soft swirl can be a single flavour or a two-flavour twist. */
 export const MAX_SOFT_FLAVORS = 2;
 /** No vessel holds more than this, whatever the catalog says. */
-export const MAX_SCOOPS = 3;
+const MAX_SCOOPS = 3;
 /** Enough choice to feel generous, few enough to still render at 60fps. */
 export const MAX_TOPPINGS = 6;
 
@@ -87,7 +87,6 @@ const clampStep = (index: number): Step => STEPS[Math.min(Math.max(index, 0), ST
  */
 function toggleCapped(list: readonly string[], id: string, max: number): string[] {
   if (list.includes(id)) return list.filter((item) => item !== id);
-  if (max <= 0) return [...list];
   return [...list, id].slice(-max);
 }
 
@@ -135,6 +134,11 @@ export function creationReducer(state: Creation, action: CreationAction): Creati
       return { ...state, step: "serve", servedCount: state.servedCount + 1 };
 
     case "startOver":
+      // Resetting an untouched order should not hand the scene new arrays to
+      // rebuild from - see IceCreamCanvas.
+      if (state.style === null && state.flavors.length === 0 && state.toppings.length === 0 && state.step === "style") {
+        return state;
+      }
       return { ...emptyCreation(), servedCount: state.servedCount };
 
     default:
