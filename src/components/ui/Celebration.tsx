@@ -1,0 +1,77 @@
+"use client";
+
+import { useEffect, useMemo, useRef } from "react";
+
+const CONFETTI_COLORS = ["#FF6FA5", "#FFD25E", "#4FD0B6", "#7BC6FF", "#E8395B", "#FFFAF0"];
+
+interface CelebrationProps {
+  /** Changes on every serve so the overlay replays. */
+  serveId: number;
+  headline: string;
+  onAgain: () => void;
+}
+
+/** The ta-da overlay: confetti rain, a big cheer, and one button back to play. */
+export function Celebration({ serveId, headline, onAgain }: CelebrationProps) {
+  const againRef = useRef<HTMLButtonElement>(null);
+
+  // A fresh scatter per serve keeps the moment feeling new.
+  const confetti = useMemo(
+    () =>
+      Array.from({ length: 44 }, (_, index) => {
+        const n = index + serveId * 7;
+        return {
+          left: (n * 37) % 100,
+          drift: ((n * 53) % 120) - 60,
+          delay: ((n * 71) % 900) / 1000,
+          duration: 2.2 + (((n * 29) % 90) / 100),
+          color: CONFETTI_COLORS[n % CONFETTI_COLORS.length],
+          size: 8 + ((n * 13) % 10),
+        };
+      }),
+    [serveId],
+  );
+
+  useEffect(() => {
+    againRef.current?.focus();
+  }, [serveId]);
+
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 z-20 overflow-hidden"
+      role="alertdialog"
+      aria-live="assertive"
+      aria-label={headline}
+    >
+      {confetti.map((piece, index) => (
+        <span
+          key={index}
+          aria-hidden="true"
+          className="absolute top-0 block rounded-[3px]"
+          style={{
+            left: `${piece.left}%`,
+            width: piece.size,
+            height: piece.size * 0.55,
+            backgroundColor: piece.color,
+            ["--drift" as string]: `${piece.drift}px`,
+            animation: `confetti-fall ${piece.duration}s linear ${piece.delay}s forwards`,
+          }}
+        />
+      ))}
+
+      <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 p-4 sm:gap-4 sm:p-6">
+        <p className="animate-float-up rounded-3xl bg-cocoa px-5 py-3 text-center font-display text-2xl text-butter shadow-xl sm:text-4xl">
+          {headline}
+        </p>
+        <button
+          ref={againRef}
+          type="button"
+          onClick={onAgain}
+          className="sticker pointer-events-auto animate-float-up cursor-pointer bg-mint px-7 py-4 font-display text-xl text-cocoa sm:text-2xl"
+        >
+          Make another!
+        </button>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,51 @@
+import type { Metadata, Viewport } from "next";
+import { Bagel_Fat_One, Grandstander } from "next/font/google";
+import "./globals.css";
+
+const bagel = Bagel_Fat_One({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-bagel",
+  display: "swap",
+});
+
+const grandstander = Grandstander({
+  subsets: ["latin"],
+  variable: "--font-grandstander",
+  display: "swap",
+});
+
+/** Absolute base for canonical and Open Graph URLs. Optional everywhere. */
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : undefined);
+
+export const metadata: Metadata = {
+  metadataBase: siteUrl ? new URL(siteUrl) : undefined,
+  title: "Ice Creams - Pretend Play Ice Cream Shop",
+  description:
+    "A toddler-friendly 3D ice cream shop. Pick a swirl or scoops, choose flavours, a cone or cup, pile on toppings, then serve the order.",
+  applicationName: "Ice Creams",
+  openGraph: {
+    title: "Ice Creams - Pretend Play Ice Cream Shop",
+    description: "Make and serve pretend ice cream in 3D. Built for little hands.",
+    type: "website",
+  },
+  robots: { index: true, follow: true },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#fff4e2",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className={`${bagel.variable} ${grandstander.variable}`}>
+      <body className="min-h-dvh antialiased">{children}</body>
+    </html>
+  );
+}

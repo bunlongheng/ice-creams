@@ -1,0 +1,39 @@
+{
+  "name": "ice-creams",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A toddler-friendly 3D ice cream shop pretend-play app",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev --turbopack -p 3047",
+    "build": "next build",
+    "start": "next start -p 3047",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "next": "^16.3.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.14",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@types/three": "^0.185.4",
+    "eslint": "^9.39.1",
+    "eslint-config-next": "^16.3.4",
+    "husky": "^9.1.7",
+    "tailwindcss": "^4.1.14",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "unrs-resolver@1.12.2": true
+  }
+}
