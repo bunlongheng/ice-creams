@@ -75,9 +75,14 @@ const WAFFLE_BOWL: Profile = [
 ];
 
 function shell(profile: Profile, material: THREE.Material): THREE.Mesh {
-  const mesh = new THREE.Mesh(latheProfile(profile), material);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
+  return new THREE.Mesh(latheProfile(profile), material);
+}
+
+/** The rolled lip every cup, cone and bowl has. */
+function rim(radius: number, tube: number, y: number, material: THREE.Material): THREE.Mesh {
+  const mesh = new THREE.Mesh(new THREE.TorusGeometry(radius, tube, 12, 48), material);
+  mesh.rotation.x = Math.PI / 2;
+  mesh.position.y = y;
   return mesh;
 }
 
@@ -86,10 +91,7 @@ function buildCup(): BuiltVessel {
   const group = new THREE.Group();
   group.add(shell(CUP, stripedCupMaterial()));
 
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.032, 12, 48), plasticMaterial("#FF6FA5"));
-  rim.rotation.x = Math.PI / 2;
-  rim.position.y = 0.79;
-  group.add(rim);
+  group.add(rim(0.66, 0.032, 0.79, plasticMaterial("#FF6FA5")));
 
   return { group, topY: 0.74, topRadius: 0.6 };
 }
@@ -97,20 +99,14 @@ function buildCup(): BuiltVessel {
 function buildWaffleCone(): BuiltVessel {
   const group = new THREE.Group();
   group.add(shell(WAFFLE_CONE, coneMaterial("waffle")));
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.035, 12, 48), coneMaterial("waffle"));
-  rim.rotation.x = Math.PI / 2;
-  rim.position.y = 1.27;
-  group.add(rim);
+  group.add(rim(0.6, 0.035, 1.27, coneMaterial("waffle")));
   return { group, topY: 1.2, topRadius: 0.56 };
 }
 
 function buildCakeCone(): BuiltVessel {
   const group = new THREE.Group();
   group.add(shell(CAKE_CONE, coneMaterial("wafer")));
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.03, 12, 48), coneMaterial("wafer"));
-  rim.rotation.x = Math.PI / 2;
-  rim.position.y = 1.05;
-  group.add(rim);
+  group.add(rim(0.58, 0.03, 1.05, coneMaterial("wafer")));
   return { group, topY: 0.99, topRadius: 0.54 };
 }
 
@@ -149,10 +145,7 @@ function buildFloat(): BuiltVessel {
 function buildWaffleBowl(): BuiltVessel {
   const group = new THREE.Group();
   group.add(shell(WAFFLE_BOWL, coneMaterial("waffle")));
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.84, 0.04, 12, 56), coneMaterial("waffle"));
-  rim.rotation.x = Math.PI / 2;
-  rim.position.y = 0.8;
-  group.add(rim);
+  group.add(rim(0.84, 0.04, 0.8, coneMaterial("waffle")));
   return { group, topY: 0.66, topRadius: 0.74 };
 }
 

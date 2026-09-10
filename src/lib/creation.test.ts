@@ -7,6 +7,7 @@ import {
   emptyCreation,
   flavorCapacity,
   isServable,
+  reachableSteps,
   type Creation,
 } from "./creation";
 
@@ -116,6 +117,34 @@ describe("creationReducer", () => {
     );
     expect(state).toMatchObject({ style: null, flavors: [], vessel: null, toppings: [], step: "style" });
     expect(state.servedCount).toBe(1);
+  });
+
+  it("only offers steps the child has already answered", () => {
+    expect(reachableSteps(emptyCreation())).toEqual(["style"]);
+    expect(reachableSteps(build({ type: "setStyle", id: "soft" }))).toEqual(["style", "flavor"]);
+    expect(
+      reachableSteps(
+        build(
+          { type: "setStyle", id: "soft" },
+          { type: "toggleFlavor", id: "vanilla" },
+          { type: "setVessel", id: "cup" },
+        ),
+      ),
+    ).toEqual(["style", "flavor", "vessel", "topping"]);
+  });
+
+  it("keeps the flavour and topping arrays stable when only the step changes", () => {
+    const built = build(
+      { type: "setStyle", id: "scoop" },
+      { type: "toggleFlavor", id: "vanilla" },
+      { type: "setVessel", id: "cup" },
+      { type: "toggleTopping", id: "cherry" },
+    );
+    const stepped = creationReducer(creationReducer(built, { type: "back" }), { type: "next" });
+
+    // The 3D scene keys its rebuild on these references - see IceCreamCanvas.
+    expect(stepped.flavors).toBe(built.flavors);
+    expect(stepped.toppings).toBe(built.toppings);
   });
 
   it("never walks past either end of the step list", () => {

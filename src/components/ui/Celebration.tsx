@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { makeRng } from "@/lib/random";
 
 const CONFETTI_COLORS = ["#FF6FA5", "#FFD25E", "#4FD0B6", "#7BC6FF", "#E8395B", "#FFFAF0"];
 
@@ -16,21 +17,17 @@ export function Celebration({ serveId, headline, onAgain }: CelebrationProps) {
   const againRef = useRef<HTMLButtonElement>(null);
 
   // A fresh scatter per serve keeps the moment feeling new.
-  const confetti = useMemo(
-    () =>
-      Array.from({ length: 44 }, (_, index) => {
-        const n = index + serveId * 7;
-        return {
-          left: (n * 37) % 100,
-          drift: ((n * 53) % 120) - 60,
-          delay: ((n * 71) % 900) / 1000,
-          duration: 2.2 + (((n * 29) % 90) / 100),
-          color: CONFETTI_COLORS[n % CONFETTI_COLORS.length],
-          size: 8 + ((n * 13) % 10),
-        };
-      }),
-    [serveId],
-  );
+  const confetti = useMemo(() => {
+    const rng = makeRng(serveId * 7919 + 13);
+    return Array.from({ length: 44 }, (_, index) => ({
+      left: rng() * 100,
+      drift: rng() * 120 - 60,
+      delay: rng() * 0.9,
+      duration: 2.2 + rng() * 0.9,
+      color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
+      size: 8 + rng() * 10,
+    }));
+  }, [serveId]);
 
   useEffect(() => {
     againRef.current?.focus();
@@ -39,8 +36,7 @@ export function Celebration({ serveId, headline, onAgain }: CelebrationProps) {
   return (
     <div
       className="pointer-events-none absolute inset-0 z-20 overflow-hidden"
-      role="alertdialog"
-      aria-live="assertive"
+      role="status"
       aria-label={headline}
     >
       {confetti.map((piece, index) => (
@@ -67,7 +63,7 @@ export function Celebration({ serveId, headline, onAgain }: CelebrationProps) {
           ref={againRef}
           type="button"
           onClick={onAgain}
-          className="sticker pointer-events-auto animate-float-up cursor-pointer bg-mint px-5 py-3 font-display text-lg text-cocoa sm:px-7 sm:py-4 sm:text-2xl"
+          className="sticker pointer-events-auto animate-float-up bg-mint px-5 py-3 font-display text-lg text-cocoa sm:px-7 sm:py-4 sm:text-2xl"
         >
           Make another!
         </button>

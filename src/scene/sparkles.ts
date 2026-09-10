@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { makeRng } from "./random";
+import { makeRng } from "@/lib/random";
 import { starTexture } from "./textures";
 
 /** A one-shot burst of stars for the serve celebration. */

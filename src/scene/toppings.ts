@@ -1,9 +1,10 @@
 import * as THREE from "three";
 import { getTopping, type Topping } from "@/lib/catalog";
 import { sauceGeometry, scoopBulge, sweptTube, swirlCurve } from "./geometry";
+import { scatter } from "./scatter";
 import type { Anchor, BuiltIceCream } from "./iceCream";
-import { candyMaterial, sauceMaterial } from "./materials";
-import { hashString, makeRng } from "./random";
+import { candyMaterial, creamMaterial, sauceMaterial } from "./materials";
+import { hashString, makeRng } from "@/lib/random";
 
 /**
  * Toppings are added in shop order - sauce, then cream, then the scattered bits,
@@ -12,73 +13,11 @@ import { hashString, makeRng } from "./random";
 
 const RAINBOW = ["#FF4D6D", "#FFC53D", "#4CC9F0", "#8AE06B", "#C77DFF", "#FF8FAB"];
 
-interface ScatterOptions {
-  count: number;
-  geometry: THREE.BufferGeometry;
-  material: THREE.Material;
-  /** How far into the surface the piece sinks. */
-  embed: number;
-  scale: [number, number];
-  /** Stand the piece up along the surface normal instead of tumbling it. */
-  alignToNormal?: boolean;
-  colors?: readonly string[];
-}
-
-function scatter(anchors: readonly Anchor[], rng: () => number, options: ScatterOptions): THREE.InstancedMesh | null {
-  if (anchors.length === 0) return null;
-  const count = Math.min(options.count, anchors.length * 3);
-  const mesh = new THREE.InstancedMesh(options.geometry, options.material, count);
-  mesh.castShadow = true;
-
-  const matrix = new THREE.Matrix4();
-  const quaternion = new THREE.Quaternion();
-  const position = new THREE.Vector3();
-  const scaleVector = new THREE.Vector3();
-  const euler = new THREE.Euler();
-  const up = new THREE.Vector3(0, 1, 0);
-  const color = new THREE.Color();
-  const [minScale, maxScale] = options.scale;
-
-  for (let i = 0; i < count; i++) {
-    const anchor = anchors[Math.floor(rng() * anchors.length)];
-    if (!anchor) continue;
-    const jitter = new THREE.Vector3(rng() - 0.5, rng() - 0.5, rng() - 0.5).multiplyScalar(0.045);
-    position.copy(anchor.position).add(jitter).addScaledVector(anchor.normal, -options.embed);
-
-    if (options.alignToNormal) {
-      quaternion.setFromUnitVectors(up, anchor.normal);
-    } else {
-      euler.set(rng() * Math.PI * 2, rng() * Math.PI * 2, rng() * Math.PI * 2);
-      quaternion.setFromEuler(euler);
-    }
-
-    const s = minScale + rng() * (maxScale - minScale);
-    scaleVector.set(s, s, s);
-    matrix.compose(position, quaternion, scaleVector);
-    mesh.setMatrixAt(i, matrix);
-
-    if (options.colors) {
-      color.set(options.colors[i % options.colors.length] ?? "#ffffff");
-      mesh.setColorAt(i, color);
-    }
-  }
-
-  mesh.instanceMatrix.needsUpdate = true;
-  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  return mesh;
-}
-
 /** A little piped rosette of whipped cream. */
 function whippedCream(): THREE.Group {
   const group = new THREE.Group();
   const curve = swirlCurve(0.36, 0.14, 2.2);
-  const material = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color("#FFFCF6"),
-    roughness: 0.62,
-    sheen: 0.9,
-    sheenRoughness: 0.6,
-    clearcoat: 0.4,
-  });
+  const material = creamMaterial();
   const swirl = new THREE.Mesh(sweptTube(curve, 140, 18, (t) => 0.115 * (1 - t * 0.7)), material);
   swirl.castShadow = true;
   group.add(swirl);

@@ -38,7 +38,7 @@ export function ChoiceGrid({ choices, selected, onChoose, label, columns = "norm
             onClick={() => onChoose(choice.id)}
             data-selected={isSelected}
             aria-pressed={isSelected}
-            className="sticker animate-pop-in flex min-h-[88px] cursor-pointer flex-col items-center justify-center gap-1 p-2 sm:min-h-[104px] sm:p-3"
+            className="sticker animate-pop-in flex min-h-[88px] flex-col items-center justify-center gap-1 p-2 sm:min-h-[104px] sm:p-3"
             style={{ animationDelay: `${Math.min(index * 28, 320)}ms` }}
           >
             <span className="pointer-events-none block w-12 sm:w-14">{choice.art}</span>

@@ -1,13 +1,15 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import type { Creation } from "@/lib/creation";
+import type { Dessert } from "@/lib/creation";
 import { disposeObject } from "./geometry";
+import { disposeMaterialCache } from "./materials";
+import { disposeTextureCache } from "./textures";
 import { buildIceCream } from "./iceCream";
 import { SparkleBurst } from "./sparkles";
 import { radialTexture } from "./textures";
 import { addToppings } from "./toppings";
 import { buildVessel } from "./vessels";
-import { hashString } from "./random";
+import { hashString } from "@/lib/random";
 
 /**
  * Owns the WebGL canvas. React tells it what the order is; it rebuilds the
@@ -24,6 +26,8 @@ export class IceCreamScene {
   private readonly keyLight: THREE.DirectionalLight;
   private readonly clock = new THREE.Clock();
   private readonly resizeObserver: ResizeObserver;
+  private readonly environmentTarget: THREE.WebGLRenderTarget;
+  private readonly motionQuery: MediaQueryList;
 
   private frame = 0;
   private popTime = Infinity;
@@ -53,8 +57,8 @@ export class IceCreamScene {
 
     // A tiny room gives the ice cream real reflections without an HDR download.
     const pmrem = new THREE.PMREMGenerator(this.renderer);
-    const environment = pmrem.fromScene(new RoomEnvironment(), 0.04);
-    this.scene.environment = environment.texture;
+    this.environmentTarget = pmrem.fromScene(new RoomEnvironment(), 0.04);
+    this.scene.environment = this.environmentTarget.texture;
     this.scene.environmentIntensity = 0.5;
     pmrem.dispose();
 
@@ -107,9 +111,9 @@ export class IceCreamScene {
     this.scene.add(this.turntable);
     this.scene.add(this.sparkles.points);
 
-    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    this.reducedMotion = motionQuery.matches;
-    motionQuery.addEventListener("change", this.onMotionPreferenceChange);
+    this.motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    this.reducedMotion = this.motionQuery.matches;
+    this.motionQuery.addEventListener("change", this.onMotionPreferenceChange);
 
     this.resizeObserver = new ResizeObserver(this.resize);
     this.resizeObserver.observe(canvas);
@@ -121,11 +125,11 @@ export class IceCreamScene {
     canvas.addEventListener("pointercancel", this.onPointerUp);
     document.addEventListener("visibilitychange", this.onVisibilityChange);
 
-    this.frame = requestAnimationFrame(this.tick);
+    this.start();
   }
 
   /** Rebuilds the dessert from an order. Cheap enough to call on every tap. */
-  setCreation(creation: Creation): void {
+  setCreation(creation: Dessert): void {
     if (this.disposed) return;
 
     disposeObject(this.dessert);
@@ -149,29 +153,34 @@ export class IceCreamScene {
     this.frameCamera();
   }
 
-  /** The ta-da: spin, glow, sparkle. */
+  /** The ta-da: spin, glow, sparkle. Calmed right down under reduced motion. */
   celebrate(seed = 1): void {
     if (this.disposed) return;
     this.serveTime = 0;
-    this.spinVelocity = this.reducedMotion ? 0 : 7.5;
+    if (this.reducedMotion) return;
+    this.spinVelocity = 7.5;
     this.sparkles.fire(new THREE.Vector3(0, this.crownY * 0.86, 0), hashString(String(seed)) % 9999);
   }
 
   dispose(): void {
     this.disposed = true;
-    cancelAnimationFrame(this.frame);
+    this.stop();
     this.resizeObserver.disconnect();
     this.canvas.removeEventListener("pointerdown", this.onPointerDown);
     this.canvas.removeEventListener("pointermove", this.onPointerMove);
     this.canvas.removeEventListener("pointerup", this.onPointerUp);
     this.canvas.removeEventListener("pointercancel", this.onPointerUp);
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
-    window.matchMedia("(prefers-reduced-motion: reduce)").removeEventListener("change", this.onMotionPreferenceChange);
+    this.motionQuery.removeEventListener("change", this.onMotionPreferenceChange);
 
-    disposeObject(this.dessert);
     disposeObject(this.scene);
     this.sparkles.dispose();
-    this.scene.environment?.dispose();
+    // The environment map lives in a render target; disposing the texture alone
+    // leaves the target's GL memory behind.
+    this.environmentTarget.dispose();
+    this.keyLight.shadow.dispose();
+    disposeMaterialCache();
+    disposeTextureCache();
     this.renderer.dispose();
   }
 
@@ -179,13 +188,22 @@ export class IceCreamScene {
     this.reducedMotion = event.matches;
   };
 
+  /** Idempotent: never leaves two render loops running at once. */
+  private start(): void {
+    if (this.frame !== 0 || this.disposed || document.hidden) return;
+    this.clock.getDelta();
+    this.frame = requestAnimationFrame(this.tick);
+  }
+
+  private stop(): void {
+    if (this.frame === 0) return;
+    cancelAnimationFrame(this.frame);
+    this.frame = 0;
+  }
+
   private onVisibilityChange = () => {
-    if (document.hidden) {
-      cancelAnimationFrame(this.frame);
-    } else {
-      this.clock.getDelta();
-      this.frame = requestAnimationFrame(this.tick);
-    }
+    if (document.hidden) this.stop();
+    else this.start();
   };
 
   private onPointerDown = (event: PointerEvent) => {
@@ -233,7 +251,10 @@ export class IceCreamScene {
   };
 
   private tick = () => {
-    if (this.disposed) return;
+    if (this.disposed) {
+      this.frame = 0;
+      return;
+    }
     this.frame = requestAnimationFrame(this.tick);
 
     const delta = Math.min(this.clock.getDelta(), 0.05);
@@ -265,9 +286,9 @@ export class IceCreamScene {
     if (this.serveTime !== Infinity) {
       this.serveTime += delta;
       const t = this.serveTime;
-      glowMaterial.opacity = Math.max(0, 0.85 * Math.exp(-t * 1.05));
+      glowMaterial.opacity = this.reducedMotion ? 0 : Math.max(0, 0.85 * Math.exp(-t * 1.05));
       this.glow.scale.setScalar(0.7 + Math.min(t, 2) * 0.5);
-      this.keyLight.intensity = 2.0 + Math.max(0, 2.4 * Math.exp(-t * 1.6));
+      this.keyLight.intensity = this.reducedMotion ? 2.0 : 2.0 + Math.max(0, 2.4 * Math.exp(-t * 1.6));
       if (t > 3) {
         this.serveTime = Infinity;
         glowMaterial.opacity = 0;

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { makeRng, noise3 } from "./random";
+import { makeRng, noise3 } from "@/lib/random";
 
 /**
  * Procedural geometry for the dessert. Everything is built from maths so a new
@@ -126,7 +126,7 @@ export function latheProfile(points: readonly [number, number][], segments = 64)
 export function sauceGeometry(
   radius: number,
   seed: number,
-  bulge: (direction: THREE.Vector3) => number = () => 1,
+  bulge: (direction: THREE.Vector3) => number,
 ): THREE.BufferGeometry {
   const radialSegments = 56;
   const rings = 26;
@@ -181,13 +181,14 @@ export function sauceGeometry(
   return geometry;
 }
 
-/** Recursively free every geometry and material under an object. */
+/**
+ * Recursively free the geometry (and instance buffers) under an object.
+ * Materials are deliberately left alone - they are shared and cached, and
+ * disposing one would throw away its compiled shader program.
+ */
 export function disposeObject(root: THREE.Object3D): void {
   root.traverse((child) => {
-    const mesh = child as Partial<THREE.Mesh>;
-    mesh.geometry?.dispose();
-    const material = mesh.material;
-    if (Array.isArray(material)) material.forEach((m) => m.dispose());
-    else material?.dispose();
+    if (child instanceof THREE.InstancedMesh) child.dispose();
+    (child as Partial<THREE.Mesh>).geometry?.dispose();
   });
 }

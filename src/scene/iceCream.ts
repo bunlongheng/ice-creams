@@ -1,8 +1,9 @@
 import * as THREE from "three";
 import { getFlavor, type Flavor, type StyleId } from "@/lib/catalog";
 import { scoopGeometry, sweptTube, swirlCurve } from "./geometry";
+import { scatter } from "./scatter";
 import { candyMaterial, iceCreamMaterial } from "./materials";
-import { hashString, makeRng } from "./random";
+import { hashString, makeRng } from "@/lib/random";
 
 /** A spot on the dessert where a topping can land, plus which way is "out". */
 export interface Anchor {
@@ -32,33 +33,19 @@ const SOFT_HEIGHT = 1.12;
 function addMixIns(group: THREE.Group, flavor: Flavor, anchors: readonly Anchor[], seed: number): void {
   if (flavor.chunk !== "chip" && flavor.chunk !== "cookie") return;
 
-  const rng = makeRng(seed + 11);
-  const count = flavor.chunk === "cookie" ? 34 : 28;
-  const geometry =
-    flavor.chunk === "cookie"
-      ? new THREE.BoxGeometry(0.055, 0.02, 0.05)
-      : new THREE.ConeGeometry(0.028, 0.045, 6);
-  const mesh = new THREE.InstancedMesh(geometry, candyMaterial(flavor.chunkColor), count);
-  mesh.castShadow = true;
-
-  const matrix = new THREE.Matrix4();
-  const quaternion = new THREE.Quaternion();
-  const scale = new THREE.Vector3(1, 1, 1);
-  const position = new THREE.Vector3();
-  const euler = new THREE.Euler();
-
-  for (let i = 0; i < count; i++) {
-    const anchor = anchors[Math.floor(rng() * anchors.length)];
-    if (!anchor) continue;
-    // Sit the chunk just under the surface so only part of it shows.
-    position.copy(anchor.position).addScaledVector(anchor.normal, -0.012);
-    euler.set(rng() * Math.PI, rng() * Math.PI, rng() * Math.PI);
-    quaternion.setFromEuler(euler);
-    matrix.compose(position, quaternion, scale);
-    mesh.setMatrixAt(i, matrix);
-  }
-  mesh.instanceMatrix.needsUpdate = true;
-  group.add(mesh);
+  const mesh = scatter(anchors, makeRng(seed + 11), {
+    count: flavor.chunk === "cookie" ? 34 : 28,
+    geometry:
+      flavor.chunk === "cookie"
+        ? new THREE.BoxGeometry(0.055, 0.02, 0.05)
+        : new THREE.ConeGeometry(0.028, 0.045, 6),
+    material: candyMaterial(flavor.chunkColor),
+    // Sit each chunk just under the surface so only part of it shows.
+    embed: 0.012,
+    scale: [1, 1],
+    jitter: 0,
+  });
+  if (mesh) group.add(mesh);
 }
 
 /** Piped soft serve: one coil, or two intertwined coils for a twist. */

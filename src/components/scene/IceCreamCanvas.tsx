@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { Creation } from "@/lib/creation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { getFlavor, getTopping, getVessel } from "@/lib/catalog";
+import type { Creation, Dessert } from "@/lib/creation";
 import { IceCreamScene } from "@/scene/IceCreamScene";
 
 interface IceCreamCanvasProps {
@@ -36,9 +37,22 @@ export function IceCreamCanvas({ creation }: IceCreamCanvasProps) {
     };
   }, [supported]);
 
+  // Stepping back and forth does not change the dessert, and rebuilding it costs
+  // a full geometry pass - so depend only on what is actually modelled. The
+  // reducer keeps these references stable unless the order really changed.
+  const dessert = useMemo<Dessert>(
+    () => ({
+      style: creation.style,
+      flavors: creation.flavors,
+      vessel: creation.vessel,
+      toppings: creation.toppings,
+    }),
+    [creation.style, creation.flavors, creation.vessel, creation.toppings],
+  );
+
   useEffect(() => {
-    sceneRef.current?.setCreation(creation);
-  }, [creation]);
+    sceneRef.current?.setCreation(dessert);
+  }, [dessert, supported]);
 
   useEffect(() => {
     if (creation.servedCount > 0) sceneRef.current?.celebrate(creation.servedCount);
@@ -59,7 +73,7 @@ export function IceCreamCanvas({ creation }: IceCreamCanvasProps) {
       ref={canvasRef}
       className="h-full w-full cursor-grab touch-pan-y active:cursor-grabbing"
       role="img"
-      aria-label={describeCreation(creation)}
+      aria-label={describeCreation(dessert)}
     />
   );
 }
@@ -74,13 +88,24 @@ function hasWebGL(): boolean {
   }
 }
 
+/** Joins names the way a person would say them: "a, b and c". */
+function list(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
 /** Spoken description of the dessert, kept in sync with what is rendered. */
-function describeCreation(creation: Creation): string {
-  if (!creation.style || creation.flavors.length === 0) return "An empty ice cream cup, waiting for an order.";
-  const style = creation.style === "soft" ? "soft swirl" : "scoops";
-  const parts = [`A ${style} ice cream`];
-  if (creation.vessel) parts.push(`in a ${creation.vessel.replace("-", " ")}`);
-  parts.push(`with ${creation.flavors.length} flavour${creation.flavors.length > 1 ? "s" : ""}`);
-  if (creation.toppings.length > 0) parts.push(`and ${creation.toppings.length} topping${creation.toppings.length > 1 ? "s" : ""}`);
+function describeCreation(creation: Dessert): string {
+  if (!creation.style || creation.flavors.length === 0) {
+    return "An empty ice cream cup, waiting for an order.";
+  }
+
+  const flavors = creation.flavors.map((id) => getFlavor(id)?.name).filter((name): name is string => Boolean(name));
+  const toppings = creation.toppings.map((id) => getTopping(id)?.name).filter((name): name is string => Boolean(name));
+  const vessel = creation.vessel ? getVessel(creation.vessel)?.name.toLowerCase() : undefined;
+
+  const parts = [creation.style === "soft" ? "A soft swirl of" : "Scoops of", list(flavors).toLowerCase()];
+  if (vessel) parts.push(`in a ${vessel}`);
+  if (toppings.length > 0) parts.push(`with ${list(toppings).toLowerCase()}`);
   return `${parts.join(" ")}.`;
 }

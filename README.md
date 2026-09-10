@@ -41,12 +41,13 @@ she sees. There is no reading required - every button is a picture.
 ## Built for little hands
 
 - **Pictures, not words.** Every choice is a hand-drawn SVG of the real thing.
-- **Big targets.** No button is smaller than 88px, at any screen size.
+- **Big targets.** The choice buttons are 88px tall and every control clears 44px, down to a 320px screen.
 - **No dead ends.** Picking a 7th topping drops the oldest one instead of disabling the button.
 - **No way to break it.** No menus, no settings, no external links, no in-app purchases, no network calls.
 - **Sound that can be turned off.** All audio is synthesised in the browser and the mute state is remembered.
-- **Accessible.** Real button semantics, `aria-pressed` state, visible focus rings, a live description of
-  the 3D model for screen readers, and full `prefers-reduced-motion` support.
+- **Accessible.** Real button semantics, `aria-pressed` state, visible focus rings, focus moved to each new
+  question as it appears, a spoken description of the dessert on the canvas, and `prefers-reduced-motion`
+  honoured in the CSS, the confetti and the 3D scene (no spin, no sparkle burst, no light flash).
 
 ## Quick start
 
@@ -103,16 +104,18 @@ src/
     catalog.ts          Styles, flavours, vessels, toppings - the single source of truth
     creation.ts         Pure reducer for one order (+ unit tests)
     sound.ts            Web Audio synthesis, no audio files
+    random.ts           Seeded RNG and value noise (+ unit tests)
   scene/
     IceCreamScene.ts    Owns the WebGL canvas, lights, camera and render loop
     iceCream.ts         Soft-serve swirls and hand-dug scoops
     vessels.ts          Cones, cups, glasses and bowls
     toppings.ts         Sauces, cream, scattered bits, the cherry
     geometry.ts         Swept tubes, lathes, scoop noise, sauce drips
-    materials.ts        Ice cream, waffle, glass, candy and sauce recipes
+    materials.ts        Shared, cached material recipes (+ unit tests)
+    scatter.ts          Instanced scattering of bits over a surface
     textures.ts         Canvas-drawn textures - no image assets
     sparkles.ts         The celebration particle burst
-    random.ts           Seeded RNG and value noise (+ unit tests)
+docs/screenshots/       README images
 ```
 
 ## How the 3D works
@@ -130,8 +133,11 @@ no textures and no HDR maps, which keeps the payload small and the shop instantl
   environment for real reflections.
 - **Nothing is random.** A seeded RNG means the same order always rebuilds the same dessert.
 
-React never re-renders per frame: `IceCreamScene` owns its own `requestAnimationFrame` loop, pauses when
-the tab is hidden, clamps the pixel ratio to 2, and disposes every geometry and material when an order changes.
+React never re-renders per frame: `IceCreamScene` owns its own `requestAnimationFrame` loop, pauses when the
+tab is hidden and clamps the pixel ratio to 2. Geometry is rebuilt and disposed on every change, but materials
+are **cached and shared** - disposing a material throws away its compiled shader program, so a fresh one per
+tap would recompile half a dozen shaders in the next frame. The scene also only rebuilds when the dessert
+itself changed: stepping backwards and forwards touches nothing.
 
 ## Deploying
 

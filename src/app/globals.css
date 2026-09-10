@@ -10,10 +10,8 @@
   --color-strawberry: #ff6fa5;
   --color-cherry: #e8395b;
   --color-mint: #4fd0b6;
-  --color-sky: #7bc6ff;
   --color-butter: #ffd25e;
   --color-cocoa: #4a2c2a;
-  --color-waffle: #d9a05b;
 
   --font-display: var(--font-bagel), "Comic Sans MS", cursive;
   --font-body: var(--font-grandstander), ui-rounded, system-ui, sans-serif;
@@ -57,6 +55,7 @@ body {
       box-shadow 140ms ease,
       background-color 140ms ease;
     touch-action: manipulation;
+    cursor: pointer;
   }
 
   .sticker:active {
@@ -100,6 +99,58 @@ body {
     mask-image: radial-gradient(circle at 13px 0, #000 12px, transparent 12.5px);
     mask-size: 26px 16px;
     mask-repeat: repeat-x;
+  }
+}
+
+/* Phones held sideways get a very short viewport - shrink the chrome so the
+   choices and the dessert still get real room. */
+@media (max-height: 540px) {
+  .shop-shell {
+    gap: 0.4rem;
+    padding: 0.4rem;
+  }
+
+  .shop-header {
+    padding-top: 0.15rem;
+    padding-bottom: 0.55rem;
+  }
+
+  .shop-awning {
+    height: 2rem;
+  }
+
+  .shop-title {
+    font-size: 1.05rem;
+    padding: 0.2rem 0.7rem;
+  }
+
+  .shop-icon-button {
+    /* Still a 44px tap target, the minimum for little fingers. */
+    height: 2.75rem;
+    width: 2.75rem;
+  }
+
+  .shop-customer {
+    width: 2.2rem;
+  }
+
+  /* The step chips fall back to numbers when the panel gets narrow, but the
+     label stays readable to screen readers. */
+  .shop-step-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .shop-bubble {
+    font-size: 0.7rem;
+    max-width: 9rem;
+    padding: 0.3rem 0.5rem;
   }
 }
 
@@ -166,6 +217,7 @@ body {
   *::before,
   *::after {
     animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }

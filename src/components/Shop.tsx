@@ -1,9 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useMemo, useReducer, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useSyncExternalStore } from "react";
 import { FLAVORS, STYLES, TOPPINGS, VESSELS, getFlavor, getStyle, getVessel } from "@/lib/catalog";
-import { creationReducer, emptyCreation, isServable, type Step } from "@/lib/creation";
+import { creationReducer, emptyCreation, isServable, reachableSteps, type Step } from "@/lib/creation";
 import { sounds } from "@/lib/sound";
 import { CustomerArt, FlavorArt, ScoopsArt, SoftServeArt, ToppingArt, VesselArt } from "@/components/ui/Art";
 import { Celebration } from "@/components/ui/Celebration";
@@ -17,7 +17,7 @@ const IceCreamCanvas = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-full w-full items-center justify-center">
-        <span className="animate-wobble font-display text-2xl text-cocoa/50">Scooping...</span>
+        <span className="animate-wobble font-display text-2xl text-cocoa/80">Scooping...</span>
       </div>
     ),
   },
@@ -36,6 +36,13 @@ const CHEERS = ["Yay! Thank you!", "Yummy! You are the best!", "Wow, that is bea
 export function Shop() {
   const [creation, dispatch] = useReducer(creationReducer, undefined, emptyCreation);
   const muted = useSyncExternalStore(sounds.subscribe, sounds.isMuted, sounds.isMutedOnServer);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // Each step swaps the whole grid, so send focus (and the screen reader) to the
+  // new question instead of dropping focus on the unmounted button.
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [creation.step]);
 
   const toggleMuted = useCallback(() => {
     sounds.setMuted(!sounds.isMuted());
@@ -104,13 +111,7 @@ export function Shop() {
 
   const served = creation.step === "serve";
   const canServe = isServable(creation);
-  const reachable = useMemo<Step[]>(() => {
-    const steps: Step[] = ["style"];
-    if (creation.style) steps.push("flavor");
-    if (creation.flavors.length > 0) steps.push("vessel");
-    if (creation.vessel) steps.push("topping");
-    return steps;
-  }, [creation.style, creation.flavors.length, creation.vessel]);
+  const reachable = useMemo(() => reachableSteps(creation), [creation]);
 
   const customerLine = useMemo(() => {
     if (served) return CHEERS[creation.servedCount % CHEERS.length] ?? CHEERS[0];
@@ -125,7 +126,7 @@ export function Shop() {
   }, [served, creation.servedCount, creation.toppings.length, creation.vessel, creation.flavors, creation.style]);
 
   return (
-    <div className="mx-auto flex h-dvh w-full max-w-[1400px] flex-col gap-3 overflow-hidden p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:gap-4 sm:p-5">
+    <div className="shop-shell mx-auto flex h-dvh w-full max-w-[1400px] flex-col gap-3 overflow-hidden p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:gap-4 sm:p-5">
       <ShopSign muted={muted} onToggleMuted={toggleMuted} onStartOver={startOver} />
 
       <main
@@ -140,12 +141,12 @@ export function Shop() {
           <IceCreamCanvas creation={creation} />
 
           <div className="pointer-events-none absolute top-3 left-3 flex items-end gap-2 sm:top-4 sm:left-4">
-            <span className="block w-12 shrink-0 sm:w-16">
+            <span className="shop-customer block w-12 shrink-0 sm:w-16">
               <CustomerArt happy={served} />
             </span>
             <p
               key={customerLine}
-              className="animate-pop-in max-w-[13rem] rounded-2xl rounded-bl-sm bg-vanilla px-3 py-2 text-xs font-bold shadow-md sm:text-sm"
+              className="shop-bubble animate-pop-in max-w-[13rem] rounded-2xl rounded-bl-sm bg-vanilla px-3 py-2 text-xs font-bold shadow-md sm:text-sm"
             >
               {customerLine}
             </p>
@@ -175,7 +176,12 @@ export function Shop() {
             }}
           />
 
-          <h2 className="font-display text-xl leading-tight text-cocoa sm:text-2xl">
+          <h2
+            ref={headingRef}
+            tabIndex={-1}
+            aria-live="polite"
+            className="font-display text-xl leading-tight text-cocoa outline-none sm:text-2xl"
+          >
             {STEP_TITLES[creation.step]}
           </h2>
 
@@ -202,7 +208,7 @@ export function Shop() {
                   sounds.play("pick");
                   dispatch({ type: "back" });
                 }}
-                className="sticker flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center bg-vanilla"
+                className="sticker flex h-16 w-16 shrink-0 items-center justify-center bg-vanilla"
                 aria-label="Go back a step"
               >
                 <svg viewBox="0 0 24 24" className="h-7 w-7" aria-hidden="true">
@@ -225,7 +231,7 @@ export function Shop() {
                 type="button"
                 onClick={served ? startOver : serve}
                 disabled={!canServe}
-                className="sticker flex h-16 flex-1 cursor-pointer items-center justify-center gap-2 bg-strawberry font-display text-2xl text-vanilla disabled:cursor-not-allowed disabled:opacity-40 sm:h-20 sm:text-3xl"
+                className="sticker flex h-16 flex-1 items-center justify-center gap-2 bg-strawberry font-display text-2xl text-cocoa disabled:cursor-not-allowed disabled:opacity-40 sm:h-20 sm:text-3xl"
               >
                 {served ? "Start over" : "Serve!"}
               </button>
@@ -242,7 +248,7 @@ function NextButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="sticker flex h-16 flex-1 cursor-pointer items-center justify-center gap-2 bg-mint font-display text-xl text-cocoa sm:h-20 sm:text-2xl"
+      className="sticker flex h-16 flex-1 items-center justify-center gap-2 bg-mint font-display text-xl text-cocoa sm:h-20 sm:text-2xl"
     >
       Next
       <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
@@ -262,18 +268,16 @@ function ShopSign({
   onStartOver: () => void;
 }) {
   return (
-    <header className="relative flex shrink-0 items-center justify-between gap-3 rounded-[1.5rem] px-3 pt-3 pb-4 sm:rounded-[2rem] sm:px-5 sm:pt-4 sm:pb-5">
-      <div className="awning absolute inset-x-0 top-0 -z-10 h-14 rounded-t-[1.5rem] shadow-lg sm:h-16 sm:rounded-t-[2rem]" aria-hidden="true" />
-      <h1 className="rounded-2xl bg-cocoa px-4 py-2 font-display text-xl text-butter shadow-[0_5px_0_rgba(74,44,42,0.35)] sm:px-6 sm:py-3 sm:text-3xl">
+    <header className="shop-header relative flex shrink-0 items-center justify-between gap-3 rounded-[1.5rem] px-3 pt-3 pb-4 sm:rounded-[2rem] sm:px-5 sm:pt-4 sm:pb-5">
+      <div className="awning shop-awning absolute inset-x-0 top-0 -z-10 h-14 rounded-t-[1.5rem] shadow-lg sm:h-16 sm:rounded-t-[2rem]" aria-hidden="true" />
+      <h1 className="shop-title rounded-2xl bg-cocoa px-4 py-2 font-display text-xl text-butter shadow-[0_5px_0_rgba(74,44,42,0.35)] sm:px-6 sm:py-3 sm:text-3xl">
         Ice Creams
       </h1>
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={onToggleMuted}
-          aria-pressed={muted}
-          className="sticker flex h-12 w-12 cursor-pointer items-center justify-center bg-vanilla sm:h-14 sm:w-14"
-          style={{ borderRadius: "1rem" }}
+          className="sticker shop-icon-button flex h-12 w-12 items-center justify-center rounded-2xl bg-vanilla sm:h-14 sm:w-14"
           aria-label={muted ? "Turn sounds on" : "Turn sounds off"}
         >
           <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
@@ -288,8 +292,7 @@ function ShopSign({
         <button
           type="button"
           onClick={onStartOver}
-          className="sticker flex h-12 w-12 cursor-pointer items-center justify-center bg-vanilla sm:h-14 sm:w-14"
-          style={{ borderRadius: "1rem" }}
+          className="sticker shop-icon-button flex h-12 w-12 items-center justify-center rounded-2xl bg-vanilla sm:h-14 sm:w-14"
           aria-label="Start a new order"
         >
           <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">

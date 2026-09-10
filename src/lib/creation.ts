@@ -22,6 +22,9 @@ export const MAX_SCOOPS = 3;
 /** Enough choice to feel generous, few enough to still render at 60fps. */
 export const MAX_TOPPINGS = 6;
 
+/** The parts of an order that are actually modelled in 3D. */
+export type Dessert = Pick<Creation, "style" | "flavors" | "vessel" | "toppings">;
+
 export interface Creation {
   style: StyleId | null;
   /** Bottom scoop first. For soft serve these are the twist colours. */
@@ -63,6 +66,15 @@ export function flavorCapacity(state: Creation): number {
 /** A creation is servable once it has a style, a flavour and something to serve it in. */
 export function isServable(state: Creation): boolean {
   return state.style !== null && state.flavors.length > 0 && state.vessel !== null;
+}
+
+/** The steps the child has picked enough to jump back to. */
+export function reachableSteps(state: Creation): Step[] {
+  const steps: Step[] = ["style"];
+  if (state.style) steps.push("flavor");
+  if (state.flavors.length > 0) steps.push("vessel");
+  if (state.vessel) steps.push("topping");
+  return steps;
 }
 
 const stepIndex = (step: Step) => STEPS.indexOf(step);

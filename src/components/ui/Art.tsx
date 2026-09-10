@@ -14,9 +14,9 @@ const svgProps = {
 
 const OUTLINE = "#4A2C2A";
 
-export function SoftServeArt({ className }: { className?: string }) {
+export function SoftServeArt() {
   return (
-    <svg {...svgProps} className={className}>
+    <svg {...svgProps}>
       <path d="M22 44h20l-10 17z" fill="#D9A05B" stroke={OUTLINE} strokeWidth="2.5" strokeLinejoin="round" />
       <path d="M24 44h16M26 50h12" stroke="#A9702F" strokeWidth="2" strokeLinecap="round" />
       <path
@@ -30,9 +30,9 @@ export function SoftServeArt({ className }: { className?: string }) {
   );
 }
 
-export function ScoopsArt({ className }: { className?: string }) {
+export function ScoopsArt() {
   return (
-    <svg {...svgProps} className={className}>
+    <svg {...svgProps}>
       <path d="M22 46h20l-10 15z" fill="#D9A05B" stroke={OUTLINE} strokeWidth="2.5" strokeLinejoin="round" />
       <circle cx="32" cy="40" r="12" fill="#F6A8BC" stroke={OUTLINE} strokeWidth="2.5" />
       <circle cx="25" cy="26" r="10" fill="#A8E6C7" stroke={OUTLINE} strokeWidth="2.5" />
@@ -42,9 +42,9 @@ export function ScoopsArt({ className }: { className?: string }) {
 }
 
 /** A single scoop painted in the real flavour colour, with its mix-in hint. */
-export function FlavorArt({ flavor, className }: { flavor: Flavor; className?: string }) {
+export function FlavorArt({ flavor }: { flavor: Flavor }) {
   return (
-    <svg {...svgProps} className={className}>
+    <svg {...svgProps}>
       <defs>
         <clipPath id={`scoop-${flavor.id}`}>
           <path d="M32 10c12 0 20 9 20 18 0 6-4 10-9 12H21c-5-2-9-6-9-12 0-9 8-18 20-18z" />
@@ -146,20 +146,20 @@ const VESSEL_ART: Record<VesselId, React.ReactElement> = {
   ),
 };
 
-export function VesselArt({ id, className }: { id: VesselId; className?: string }) {
+export function VesselArt({ id }: { id: VesselId }) {
   return (
-    <svg {...svgProps} className={className}>
+    <svg {...svgProps}>
       {VESSEL_ART[id]}
     </svg>
   );
 }
 
 /** Topping art is generated from the kind so a new topping needs no new drawing. */
-export function ToppingArt({ topping, className }: { topping: Topping; className?: string }) {
+export function ToppingArt({ topping }: { topping: Topping }) {
   const { kind, color, accent } = topping;
 
   return (
-    <svg {...svgProps} className={className}>
+    <svg {...svgProps}>
       <circle cx="32" cy="34" r="21" fill="#FFF7EC" stroke={OUTLINE} strokeWidth="2.5" />
       {kind === "sprinkle" &&
         Array.from({ length: 11 }, (_, index) => (
@@ -262,9 +262,9 @@ export function ToppingArt({ topping, className }: { topping: Topping; className
 }
 
 /** The customer waiting at the counter. */
-export function CustomerArt({ happy, className }: { happy: boolean; className?: string }) {
+export function CustomerArt({ happy }: { happy: boolean }) {
   return (
-    <svg {...svgProps} className={className}>
+    <svg {...svgProps}>
       <circle cx="32" cy="34" r="22" fill="#FFD9B8" stroke={OUTLINE} strokeWidth="2.5" />
       <path d="M10 28c2-14 12-20 22-20s20 6 22 20c-6-6-14-8-22-8s-16 2-22 8z" fill="#7B4A2D" stroke={OUTLINE} strokeWidth="2.5" strokeLinejoin="round" />
       {happy ? (
