@@ -82,7 +82,7 @@ at runtime. `.env.example` documents the single optional value:
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `NEXT_PUBLIC_SITE_URL` | No | `https://$NEXT_PUBLIC_VERCEL_URL`, else unset | Absolute base for canonical and Open Graph URLs. Only needed on a custom domain or a self-hosted deploy. |
+| `NEXT_PUBLIC_SITE_URL` | No | Vercel's production domain, else unset | Absolute base for the canonical and Open Graph URLs. On Vercel it falls back to `NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL`, so set it only for a custom domain or a self-hosted deploy. |
 
 Real values never belong in the repository - copy `.env.example` to `.env.local`, which is gitignored.
 

@@ -15,10 +15,14 @@ const grandstander = Grandstander({
   display: "swap",
 });
 
-/** Absolute base for canonical and Open Graph URLs. Optional everywhere. */
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : undefined);
+/**
+ * Absolute base for canonical and Open Graph URLs. Optional everywhere.
+ * Vercel's per-deployment URL would make every preview its own canonical, so
+ * prefer the stable production domain it also exposes.
+ */
+const vercelHost =
+  process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL ?? process.env.NEXT_PUBLIC_VERCEL_URL;
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? (vercelHost ? `https://${vercelHost}` : undefined);
 
 export const metadata: Metadata = {
   metadataBase: siteUrl ? new URL(siteUrl) : undefined,
