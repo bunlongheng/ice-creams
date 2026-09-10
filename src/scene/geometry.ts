@@ -182,16 +182,14 @@ export function sauceGeometry(
 /**
  * Recursively free the geometry (and instance buffers) under an object.
  *
- * Materials are deliberately left alone by default - they are shared and cached,
- * and disposing one would throw away its compiled shader program, which the next
- * rebuild would then have to recompile. Pass `materials: true` at teardown, where
- * the one-off materials the scene owns directly do need freeing.
+ * Materials are deliberately left alone - they are shared and cached, and
+ * disposing one would throw away its compiled shader program, which the next
+ * rebuild would then have to recompile. They are freed once, at teardown, by
+ * `disposeMaterialCache`.
  */
-export function disposeObject(root: THREE.Object3D, options: { materials?: boolean } = {}): void {
+export function disposeObject(root: THREE.Object3D): void {
   root.traverse((child) => {
     if (child instanceof THREE.InstancedMesh) child.dispose();
-    const mesh = child as Partial<THREE.Mesh>;
-    mesh.geometry?.dispose();
-    if (options.materials) (mesh.material as THREE.Material | undefined)?.dispose();
+    (child as Partial<THREE.Mesh>).geometry?.dispose();
   });
 }

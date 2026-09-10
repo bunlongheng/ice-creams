@@ -2,12 +2,14 @@
 
 import { STEPS, type Step } from "@/lib/creation";
 
-const STEP_META: Record<Step, { label: string; badge: string }> = {
+/** The serve step has no chip - it is the reward, not a question. */
+type ChipStep = Exclude<Step, "serve">;
+
+const STEP_META: Record<ChipStep, { label: string; badge: string }> = {
   style: { label: "Style", badge: "1" },
   flavor: { label: "Flavour", badge: "2" },
   vessel: { label: "Serve in", badge: "3" },
   topping: { label: "Toppings", badge: "4" },
-  serve: { label: "Serve", badge: "5" },
 };
 
 interface StepBarProps {
@@ -20,7 +22,7 @@ interface StepBarProps {
 export function StepBar({ current, reachable, onGoTo }: StepBarProps) {
   return (
     <nav aria-label="Order steps" className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-      {STEPS.filter((step) => step !== "serve").map((step) => {
+      {STEPS.filter((step): step is ChipStep => step !== "serve").map((step) => {
         const meta = STEP_META[step];
         const isCurrent = step === current;
         const canGo = reachable.includes(step);

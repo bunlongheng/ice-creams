@@ -22,6 +22,7 @@ export class IceCreamScene {
   private readonly turntable = new THREE.Group();
   private readonly sparkles = new SparkleBurst();
   private readonly glow: THREE.Mesh;
+  private readonly contactShadow: THREE.Mesh;
   private readonly keyLight: THREE.DirectionalLight;
   private readonly timer = new THREE.Timer();
   private readonly resizeObserver: ResizeObserver;
@@ -84,7 +85,7 @@ export class IceCreamScene {
     this.scene.add(rim);
 
     // Soft contact shadow - cheaper and prettier than a real shadow-catching floor.
-    const shadow = new THREE.Mesh(
+    this.contactShadow = new THREE.Mesh(
       new THREE.PlaneGeometry(3.6, 3.6),
       new THREE.MeshBasicMaterial({
         map: radialTexture("rgba(120,60,40,0.5)", "rgba(120,60,40,0)", "contact"),
@@ -92,9 +93,9 @@ export class IceCreamScene {
         depthWrite: false,
       }),
     );
-    shadow.rotation.x = -Math.PI / 2;
-    shadow.position.y = 0.002;
-    this.scene.add(shadow);
+    this.contactShadow.rotation.x = -Math.PI / 2;
+    this.contactShadow.position.y = 0.002;
+    this.scene.add(this.contactShadow);
 
     this.glow = new THREE.Mesh(
       new THREE.PlaneGeometry(4.4, 4.4),
@@ -177,7 +178,11 @@ export class IceCreamScene {
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
     this.motionQuery.removeEventListener("change", this.onMotionPreferenceChange);
 
-    disposeObject(this.scene, { materials: true });
+    disposeObject(this.scene);
+    // The two backdrop meshes own their materials directly; everything else is
+    // either in the shared cache or owned by the sparkle burst.
+    (this.contactShadow.material as THREE.Material).dispose();
+    (this.glow.material as THREE.Material).dispose();
     this.sparkles.dispose();
     // The environment map lives in a render target; disposing the texture alone
     // leaves the target's GL memory behind.
@@ -275,13 +280,18 @@ export class IceCreamScene {
 
     // Pop-in: a springy overshoot whenever the order changes.
     if (this.popTime !== Infinity) {
-      this.popTime += delta;
-      const t = Math.min(this.popTime / 0.5, 1);
-      const spring = this.reducedMotion ? 1 : 1 + Math.sin(t * Math.PI * 1.6) * 0.11 * (1 - t);
-      this.dessert.scale.setScalar(t < 1 ? 0.9 + 0.1 * t : 1).multiplyScalar(spring);
-      if (t >= 1) {
+      if (this.reducedMotion) {
         this.dessert.scale.setScalar(1);
         this.popTime = Infinity;
+      } else {
+        this.popTime += delta;
+        const t = Math.min(this.popTime / 0.5, 1);
+        const spring = 1 + Math.sin(t * Math.PI * 1.6) * 0.11 * (1 - t);
+        this.dessert.scale.setScalar(t < 1 ? 0.9 + 0.1 * t : 1).multiplyScalar(spring);
+        if (t >= 1) {
+          this.dessert.scale.setScalar(1);
+          this.popTime = Infinity;
+        }
       }
     }
 

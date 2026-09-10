@@ -26,10 +26,12 @@ export const metadata: Metadata = {
   description:
     "A toddler-friendly 3D ice cream shop. Pick a swirl or scoops, choose flavours, a cone or cup, pile on toppings, then serve the order.",
   applicationName: "Ice Creams",
+  alternates: { canonical: "/" },
   openGraph: {
     title: "Ice Creams - Pretend Play Ice Cream Shop",
     description: "Make and serve pretend ice cream in 3D. Built for little hands.",
     type: "website",
+    url: "/",
   },
   robots: { index: true, follow: true },
 };

@@ -11,7 +11,7 @@ import {
   type CreationAction,
   type Step,
 } from "@/lib/creation";
-import { sounds } from "@/lib/sound";
+import { sounds, type SoundName } from "@/lib/sound";
 import { CustomerArt, FlavorArt, ScoopsArt, SoftServeArt, ToppingArt, VesselArt } from "@/components/ui/Art";
 import { Celebration } from "@/components/ui/Celebration";
 import { ChoiceGrid, type Choice } from "@/components/ui/ChoiceGrid";
@@ -37,6 +37,15 @@ const STEP_TITLES: Record<Step, string> = {
   topping: "Add the fun stuff!",
   serve: "Order up!",
 };
+
+/**
+ * How long a control ignores taps after the screen moves. Long enough to swallow
+ * the second half of a toddler's double tap (80 to 200ms), short enough that a
+ * deliberate new tap still lands.
+ */
+const STEP_GUARD_MS = 300;
+/** The ta-da is the reward - hold it long enough to be seen. */
+const SERVE_GUARD_MS = 1200;
 
 const CHEERS = ["Yay! Thank you!", "Yummy! You are the best!", "Wow, that is beautiful!", "My favourite ever!"];
 
@@ -66,60 +75,46 @@ export function Shop() {
     if (changed && creation.step !== "serve") headingRef.current?.focus();
   }, [creation.step]);
 
-  const pick = useCallback((action: CreationAction) => {
+  /** Guard, play the sound, dispatch - the one path every control takes. */
+  const act = useCallback((action: CreationAction, sound: SoundName, guardMs = STEP_GUARD_MS) => {
     if (!settled()) return;
-    guard(400);
-    sounds.play("pick");
+    guard(guardMs);
+    sounds.play(sound);
     dispatch(action);
   }, []);
+
+  const pick = useCallback((action: CreationAction) => act(action, "pick"), [act]);
 
   const toggleMuted = useCallback(() => {
     sounds.setMuted(!sounds.isMuted());
     sounds.play("pick");
   }, []);
 
-  const choose = useCallback((step: Step, id: string) => {
-    if (!settled()) return;
-    switch (step) {
-      case "style":
-        guard(400);
-        sounds.play("scoop");
-        dispatch({ type: "setStyle", id });
-        break;
-      case "flavor":
-        sounds.play("scoop");
-        dispatch({ type: "toggleFlavor", id });
-        break;
-      case "vessel":
-        guard(400);
-        sounds.play("pick");
-        dispatch({ type: "setVessel", id });
-        break;
-      case "topping": {
-        const kind = TOPPINGS.find((topping) => topping.id === id)?.kind;
-        sounds.play(kind === "sauce" ? "pour" : "sprinkle");
-        dispatch({ type: "toggleTopping", id });
-        break;
+  const choose = useCallback(
+    (step: Step, id: string) => {
+      switch (step) {
+        case "style":
+          return act({ type: "setStyle", id }, "scoop");
+        case "flavor":
+          // Toggling a flavour leaves the grid in place, so no guard is needed.
+          return act({ type: "toggleFlavor", id }, "scoop", 0);
+        case "vessel":
+          return act({ type: "setVessel", id }, "pick");
+        case "topping": {
+          const kind = TOPPINGS.find((topping) => topping.id === id)?.kind;
+          return act({ type: "toggleTopping", id }, kind === "sauce" ? "pour" : "sprinkle", 0);
+        }
+        default:
+          return;
       }
-      default:
-        break;
-    }
-  }, []);
+    },
+    [act],
+  );
 
-  const serve = useCallback(() => {
-    if (!settled()) return;
-    // Long enough to watch the confetti before anything responds again.
-    guard(1200);
-    sounds.play("serve");
-    dispatch({ type: "serve" });
-  }, []);
-
-  const startOver = useCallback(() => {
-    if (!settled()) return;
-    guard(400);
-    sounds.play("reset");
-    dispatch({ type: "startOver" });
-  }, []);
+  // The serve guard is long enough to watch the confetti before the screen
+  // responds again - the ta-da is the reward, it should not be tappable away.
+  const serve = useCallback(() => act({ type: "serve" }, "serve", SERVE_GUARD_MS), [act]);
+  const startOver = useCallback(() => act({ type: "startOver" }, "reset"), [act]);
 
   const styleChoices = useMemo<Choice[]>(
     () =>
@@ -214,7 +209,11 @@ export function Shop() {
 
           {/* Focusing the heading is what announces the new step - an extra
               live region would read it a second time. */}
-          <h2 ref={headingRef} tabIndex={-1} className="font-display text-xl leading-tight text-cocoa outline-none sm:text-2xl">
+          <h2
+            ref={headingRef}
+            tabIndex={-1}
+            className="font-display text-xl leading-tight text-cocoa outline-cocoa focus-visible:outline-4 focus-visible:outline-offset-4 sm:text-2xl"
+          >
             {STEP_TITLES[creation.step]}
           </h2>
 
