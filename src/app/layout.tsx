@@ -26,13 +26,13 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? (vercelHost ? `https://${ver
 
 export const metadata: Metadata = {
   metadataBase: siteUrl ? new URL(siteUrl) : undefined,
-  title: "Ice Creams - Pretend Play Ice Cream Shop",
+  title: "Mila's Ice Cream Shop - Pretend Play in 3D",
   description:
-    "A toddler-friendly 3D ice cream shop. Pick a swirl or scoops, choose flavours, a cone or cup, pile on toppings, then serve the order.",
-  applicationName: "Ice Creams",
+    "A toddler-friendly 3D ice cream shop. Pick a swirl or scoops, choose from 30 flavours, a cone, cup or carton, pile on toppings, then serve the order.",
+  applicationName: "Mila's Ice Cream Shop",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "Ice Creams - Pretend Play Ice Cream Shop",
+    title: "Mila's Ice Cream Shop - Pretend Play in 3D",
     description: "Make and serve pretend ice cream in 3D. Built for little hands.",
     type: "website",
     url: "/",

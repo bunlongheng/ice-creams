@@ -8,6 +8,7 @@ import {
   isStyleId,
   isToppingId,
   isVesselId,
+  vesselTakesStyle,
   type StyleId,
   type VesselId,
 } from "./catalog";
@@ -15,10 +16,10 @@ import {
 export const STEPS = ["style", "flavor", "vessel", "topping", "serve"] as const;
 export type Step = (typeof STEPS)[number];
 
-/** A soft swirl can be a single flavour or a two-flavour twist. */
-export const MAX_SOFT_FLAVORS = 2;
+/** A soft swirl braids one ribbon per flavour. */
+export const MAX_SOFT_FLAVORS = 5;
 /** No vessel holds more than this, whatever the catalog says. */
-const MAX_SCOOPS = 3;
+const MAX_SCOOPS = 6;
 /** Enough choice to feel generous, few enough to still render at 60fps. */
 export const MAX_TOPPINGS = 6;
 
@@ -97,8 +98,17 @@ export function creationReducer(state: Creation, action: CreationAction): Creati
     case "setStyle": {
       if (!isStyleId(action.id)) return state;
       if (state.style === action.id) return { ...state, step: "flavor" };
-      // Switching style changes what the flavours mean, so start the stack fresh.
-      return { ...state, style: action.id, flavors: [], step: "flavor" };
+      // Switching style changes what the flavours mean, so start the stack fresh
+      // - and drop a vessel that the new style cannot be served in.
+      const vessel = state.vessel ? getVessel(state.vessel) : undefined;
+      const keepsVessel = vessel ? vesselTakesStyle(vessel, action.id) : true;
+      return {
+        ...state,
+        style: action.id,
+        flavors: [],
+        vessel: keepsVessel ? state.vessel : null,
+        step: "flavor",
+      };
     }
 
     case "toggleFlavor": {
@@ -108,6 +118,8 @@ export function creationReducer(state: Creation, action: CreationAction): Creati
 
     case "setVessel": {
       if (!isVesselId(action.id)) return state;
+      const chosen = getVessel(action.id);
+      if (chosen && !vesselTakesStyle(chosen, state.style)) return state;
       const next = { ...state, vessel: action.id, step: "topping" as Step };
       // A cake cone holds fewer scoops than a cup - trim from the bottom. Keep
       // the same array when nothing is trimmed, so the 3D scene can skip a

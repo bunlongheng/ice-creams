@@ -4,12 +4,16 @@ import { latheProfile } from "./geometry";
 import { coneMaterial, glassMaterial, plasticMaterial, sodaMaterial, stripedCupMaterial } from "./materials";
 
 /** Where the ice cream mounts once the vessel is built. */
-interface BuiltVessel {
+export interface BuiltVessel {
   group: THREE.Group;
   /** Height of the rim / cone mouth in world units. */
   topY: number;
   /** Radius of that opening - sets how wide the first scoop can be. */
   topRadius: number;
+  /** Wells to drop scoops into, for vessels that lay them out side by side. */
+  slots?: THREE.Vector3[];
+  /** Scoop radius that fits one well, so side-by-side scoops never overlap. */
+  slotRadius?: number;
 }
 
 type Profile = readonly [number, number][];
@@ -149,6 +153,117 @@ function buildWaffleBowl(): BuiltVessel {
   return { group, topY: 0.66, topRadius: 0.74 };
 }
 
+/** A white paper tray, the kind a hot dog comes in. */
+function buildPaperBoat(): BuiltVessel {
+  const group = new THREE.Group();
+  const paper = plasticMaterial("#FFFDF7");
+
+  // A lathed bowl squashed on one axis reads as an oval paper boat.
+  const shellMesh = shell(
+    [
+      [0, 0],
+      [0.34, 0.01],
+      [0.5, 0.1],
+      [0.6, 0.28],
+      [0.64, 0.4],
+    ],
+    paper,
+  );
+  shellMesh.scale.set(1.55, 1, 0.78);
+  group.add(shellMesh);
+
+  const lip = rim(0.64, 0.035, 0.4, paper);
+  lip.scale.set(1.55, 1, 0.78);
+  group.add(lip);
+
+  // The fluted ridges every paper tray has.
+  const ridge = plasticMaterial("#F3EADA");
+  for (let i = 0; i < 18; i++) {
+    const angle = (i / 18) * Math.PI * 2;
+    const fold = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.3, 0.03), ridge);
+    fold.position.set(Math.cos(angle) * 0.86, 0.22, Math.sin(angle) * 0.44);
+    fold.lookAt(0, 0.22, 0);
+    group.add(fold);
+  }
+
+  return {
+    group,
+    topY: 0.26,
+    topRadius: 0.46,
+    slots: [new THREE.Vector3(-0.62, 0, 0), new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.62, 0, 0)],
+    slotRadius: 0.3,
+  };
+}
+
+/** A pink egg carton: six wells, one scoop each. */
+function buildEggCarton(): BuiltVessel {
+  const group = new THREE.Group();
+  const carton = plasticMaterial("#FF8FC0");
+  const well = plasticMaterial("#F2559B");
+
+  const width = 2.9;
+  const depth = 2.0;
+  const base = new THREE.Mesh(new THREE.BoxGeometry(width, 0.2, depth), carton);
+  base.position.y = 0.1;
+  group.add(base);
+
+  // A raised lip all the way round, so it reads as a carton and not a slab.
+  const wallHeight = 0.22;
+  const walls: [number, number, number, number][] = [
+    [width, 0.07, 0, depth / 2],
+    [width, 0.07, 0, -depth / 2],
+    [0.07, depth, width / 2, 0],
+    [0.07, depth, -width / 2, 0],
+  ];
+  for (const [w, d, x, z] of walls) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, wallHeight, d), carton);
+    wall.position.set(x, 0.2 + wallHeight / 2, z);
+    group.add(wall);
+  }
+
+  const slots: THREE.Vector3[] = [];
+  for (let row = 0; row < 2; row++) {
+    for (let column = 0; column < 3; column++) {
+      const x = (column - 1) * 0.88;
+      const z = (row - 0.5) * 0.92;
+      const cup = new THREE.Mesh(new THREE.SphereGeometry(0.42, 28, 18, 0, Math.PI * 2, 0, Math.PI / 2), well);
+      cup.rotation.x = Math.PI;
+      cup.position.set(x, 0.32, z);
+      cup.scale.y = 0.62;
+      group.add(cup);
+      slots.push(new THREE.Vector3(x, 0, z));
+    }
+  }
+
+  return { group, topY: 0.26, topRadius: 0.36, slots, slotRadius: 0.36 };
+}
+
+/** A small tapered paper cup - the frosty. */
+function buildFrosty(): BuiltVessel {
+  const group = new THREE.Group();
+  const paper = plasticMaterial("#FFFDF7");
+  group.add(
+    shell(
+      [
+        [0, 0],
+        [0.3, 0],
+        [0.32, 0.04],
+        [0.42, 0.5],
+        [0.46, 0.78],
+        [0.48, 0.84],
+      ],
+      paper,
+    ),
+  );
+
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.35, 0.2, 40, 1, true), plasticMaterial("#D9273C"));
+  band.position.y = 0.36;
+  group.add(band);
+  group.add(rim(0.49, 0.028, 0.84, paper));
+
+  return { group, topY: 0.8, topRadius: 0.44 };
+}
+
 const BUILDERS: Record<VesselId, () => BuiltVessel> = {
   cup: buildCup,
   "waffle-cone": buildWaffleCone,
@@ -156,6 +271,9 @@ const BUILDERS: Record<VesselId, () => BuiltVessel> = {
   sundae: buildSundae,
   float: buildFloat,
   "waffle-bowl": buildWaffleBowl,
+  "paper-boat": buildPaperBoat,
+  "egg-carton": buildEggCarton,
+  frosty: buildFrosty,
 };
 
 export function buildVessel(id: VesselId): BuiltVessel {

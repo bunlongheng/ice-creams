@@ -137,6 +137,36 @@ const VESSEL_ART: Record<VesselId, React.ReactElement> = {
       <path d="M19 12h26l-4 44H23z" fill="none" stroke={OUTLINE} strokeWidth="2.5" strokeLinejoin="round" />
     </>
   ),
+  "paper-boat": (
+    <>
+      <path d="M6 24h52c-2 14-10 22-26 22S8 38 6 24z" fill="#FFFDF7" stroke={OUTLINE} strokeWidth="2.5" strokeLinejoin="round" />
+      <path d="M14 30v10M22 33v11M32 34v12M42 33v11M50 30v10" stroke="#DCD2C0" strokeWidth="2.5" strokeLinecap="round" />
+      <rect x="4" y="19" width="56" height="7" rx="3.5" fill="#FFFFFF" stroke={OUTLINE} strokeWidth="2.5" />
+    </>
+  ),
+  "egg-carton": (
+    <>
+      <rect x="5" y="24" width="54" height="22" rx="5" fill="#FF8FC0" stroke={OUTLINE} strokeWidth="2.5" />
+      {[
+        [16, 31],
+        [32, 31],
+        [48, 31],
+        [16, 40],
+        [32, 40],
+        [48, 40],
+      ].map(([cx = 0, cy = 0], index) => (
+        <ellipse key={index} cx={cx} cy={cy} rx="6.5" ry="4" fill="#FF6FA5" stroke={OUTLINE} strokeWidth="1.6" />
+      ))}
+    </>
+  ),
+  frosty: (
+    <>
+      <path d="M20 18h24l-4 34H24z" fill="#FFFDF7" stroke={OUTLINE} strokeWidth="2.5" strokeLinejoin="round" />
+      <path d="M21 28h22l-1 8H22z" fill="#D9273C" />
+      <path d="M20 18h24l-4 34H24z" fill="none" stroke={OUTLINE} strokeWidth="2.5" strokeLinejoin="round" />
+      <rect x="17" y="13" width="30" height="7" rx="3.5" fill="#FFFFFF" stroke={OUTLINE} strokeWidth="2.5" />
+    </>
+  ),
   "waffle-bowl": (
     <>
       <path d="M10 24h44c0 16-10 26-22 26S10 40 10 24z" fill="#D9A05B" stroke={OUTLINE} strokeWidth="2.5" strokeLinejoin="round" />

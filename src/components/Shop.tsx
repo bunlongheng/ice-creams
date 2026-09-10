@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useSyncExternalStore } from "react";
-import { FLAVORS, STYLES, TOPPINGS, VESSELS, getFlavor, getStyle, getVessel } from "@/lib/catalog";
+import { FLAVORS, STYLES, TOPPINGS, getFlavor, getStyle, getVessel, vesselsForStyle } from "@/lib/catalog";
 import {
   creationReducer,
   emptyCreation,
@@ -131,9 +131,15 @@ export function Shop() {
     [],
   );
 
+  // Some vessels only take one style - a swirl cannot go in an egg carton.
   const vesselChoices = useMemo<Choice[]>(
-    () => VESSELS.map((vessel) => ({ id: vessel.id, label: vessel.name, art: <VesselArt id={vessel.id} /> })),
-    [],
+    () =>
+      vesselsForStyle(creation.style).map((vessel) => ({
+        id: vessel.id,
+        label: vessel.name,
+        art: <VesselArt id={vessel.id} />,
+      })),
+    [creation.style],
   );
 
   const toppingChoices = useMemo<Choice[]>(
@@ -209,15 +215,20 @@ export function Shop() {
 
           {/* Focusing the heading is what announces the new step - an extra
               live region would read it a second time. */}
+          {/* Focus moves here so the new question is announced. It is not a tab
+              stop, so it shows no ring - a box around the title on every step
+              would just look broken to everyone using touch. */}
           <h2
             ref={headingRef}
             tabIndex={-1}
-            className="font-display text-xl leading-tight text-cocoa outline-cocoa focus-visible:outline-4 focus-visible:outline-offset-4 sm:text-2xl"
+            className="font-display text-xl leading-tight text-cocoa outline-none sm:text-2xl"
           >
             {STEP_TITLES[creation.step]}
           </h2>
 
-          <div className="min-h-0 flex-1 overflow-y-auto pb-1">
+          {/* Selected cards tilt and carry a ring, so give them room sideways
+              and never let that turn into a horizontal scrollbar. */}
+          <div className="shop-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pb-2">
             {creation.step === "style" && (
               <ChoiceGrid label="Ice cream style" choices={styleChoices} selected={creation.style ? [creation.style] : []} onChoose={(id) => choose("style", id)} columns="wide" />
             )}
@@ -305,8 +316,8 @@ function ShopSign({
   return (
     <header className="shop-header relative flex shrink-0 items-center justify-between gap-3 rounded-[1.5rem] px-3 pt-3 pb-4 sm:rounded-[2rem] sm:px-5 sm:pt-4 sm:pb-5">
       <div className="awning shop-awning absolute inset-x-0 top-0 -z-10 h-14 rounded-t-[1.5rem] shadow-lg sm:h-16 sm:rounded-t-[2rem]" aria-hidden="true" />
-      <h1 className="shop-title rounded-2xl bg-cocoa px-4 py-2 font-display text-xl text-butter shadow-[0_5px_0_rgba(74,44,42,0.35)] sm:px-6 sm:py-3 sm:text-3xl">
-        Ice Creams
+      <h1 className="shop-title rounded-2xl bg-cocoa px-3 py-2 font-display text-base leading-tight text-butter shadow-[0_5px_0_rgba(74,44,42,0.35)] sm:px-5 sm:py-3 sm:text-2xl lg:text-3xl">
+        Mila&apos;s Ice Cream Shop
       </h1>
       <div className="flex items-center gap-2">
         <button

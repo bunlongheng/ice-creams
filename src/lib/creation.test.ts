@@ -52,15 +52,14 @@ describe("creationReducer", () => {
     expect(state.flavors).toEqual([]);
   });
 
-  it("caps a soft swirl at a two-flavour twist, dropping the oldest pick", () => {
+  it("caps a soft swirl at one ribbon per flavour, dropping the oldest pick", () => {
+    const picks = ["vanilla", "chocolate", "mango", "lemon", "lime", "peach"];
     const state = build(
       { type: "setStyle", id: "soft" },
-      { type: "toggleFlavor", id: "vanilla" },
-      { type: "toggleFlavor", id: "chocolate" },
-      { type: "toggleFlavor", id: "mango" },
+      ...picks.map((id) => ({ type: "toggleFlavor", id }) as const),
     );
     expect(state.flavors).toHaveLength(MAX_SOFT_FLAVORS);
-    expect(state.flavors).toEqual(["chocolate", "mango"]);
+    expect(state.flavors).toEqual(picks.slice(-MAX_SOFT_FLAVORS));
   });
 
   it("toggles a flavour off when it is picked twice", () => {
@@ -78,11 +77,31 @@ describe("creationReducer", () => {
       { type: "toggleFlavor", id: "vanilla" },
       { type: "toggleFlavor", id: "chocolate" },
       { type: "toggleFlavor", id: "mango" },
-      { type: "setVessel", id: "cake-cone" },
+      { type: "toggleFlavor", id: "lemon" },
+      { type: "setVessel", id: "frosty" },
     );
-    expect(state.flavors).toEqual(["chocolate", "mango"]);
-    expect(state.flavors).toHaveLength(getVessel("cake-cone")?.maxScoops ?? 0);
+    expect(state.flavors).toEqual(["mango", "lemon"]);
+    expect(state.flavors).toHaveLength(getVessel("frosty")?.maxScoops ?? 0);
     expect(flavorCapacity(state)).toBe(2);
+  });
+
+  it("gives the egg carton one scoop per well", () => {
+    const state = build({ type: "setStyle", id: "scoop" }, { type: "setVessel", id: "egg-carton" });
+    expect(flavorCapacity(state)).toBe(6);
+  });
+
+  it("will not serve a swirl in an egg carton", () => {
+    const swirl = build({ type: "setStyle", id: "soft" }, { type: "setVessel", id: "egg-carton" });
+    expect(swirl.vessel).toBeNull();
+
+    // Switching to a swirl also gives back a carton that was already chosen.
+    const switched = build(
+      { type: "setStyle", id: "scoop" },
+      { type: "toggleFlavor", id: "vanilla" },
+      { type: "setVessel", id: "egg-carton" },
+      { type: "setStyle", id: "soft" },
+    );
+    expect(switched.vessel).toBeNull();
   });
 
   it("caps toppings so the scene stays light", () => {

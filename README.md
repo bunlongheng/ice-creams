@@ -1,11 +1,11 @@
 <div align="center">
 
-# Ice Creams
+# Mila's Ice Cream Shop
 
 **A pretend-play ice cream shop in 3D, built for a two-and-a-half-year-old.**
 
-Pick a swirl or scoops, choose the flavours, pick a cone or a cup, pile on the toppings,
-then hit the big pink **Serve!** button for a confetti ta-da.
+Pick a swirl or scoops, choose from 30 flavours, pick a cone, a cup or a six-well egg carton,
+pile on the toppings, then hit the big pink **Serve!** button for a confetti ta-da.
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -27,9 +27,9 @@ she sees. There is no reading required - every button is a picture.
 
 | | |
 |---|---|
-| **2 styles** | Soft swirl (single or two-flavour twist) and hand-dug scoops |
-| **12 flavours** | Vanilla, chocolate, strawberry, cotton candy, cookies and cream, mint chip, bubblegum, birthday cake, blue raspberry, banana, mango, rocky road |
-| **6 vessels** | Cup, waffle cone, cake cone, sundae glass, float, waffle bowl |
+| **2 styles** | Soft swirl (one braided ribbon per flavour, up to 5) and hand-dug scoops |
+| **30 flavours** | Vanilla, chocolate, strawberry, mint chip, cookies and cream, cookie dough, caramel, bubblegum, birthday cake, rocky road, pistachio, mango, blueberry, peanut butter, neapolitan, purple cow, raisin, coconut, banana, pina colada, orange, pineapple, peach, coffee, watermelon, lime, lemon, raspberry, cotton candy, cherry |
+| **9 containers** | Cup, waffle cone, cake cone, sundae glass, float, waffle bowl, paper boat, pink egg carton (6 wells, scoops only), frosty cup |
 | **14 toppings** | Sprinkles, Oreo crumbles, cookie pieces, gummy bears, fruit, chocolate chips, peanuts, hot fudge, caramel, whipped cream, marshmallows, cherry |
 | **The ta-da** | Confetti, a sparkle burst, a glow and a little fanfare when the order is served |
 

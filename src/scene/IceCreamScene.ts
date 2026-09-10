@@ -33,6 +33,8 @@ export class IceCreamScene {
   private popTime = Infinity;
   private serveTime = Infinity;
   private crownY = 1.4;
+  /** Half-width of the finished dessert, so wide vessels still fit the frame. */
+  private halfWidth = 1;
   private dragging = false;
   private lastPointerX = 0;
   private spin = 0;
@@ -143,7 +145,7 @@ export class IceCreamScene {
     this.dessert.add(vessel.group);
 
     if (creation.style && creation.flavors.length > 0) {
-      const iceCream = buildIceCream(creation.style, creation.flavors, vessel.topRadius);
+      const iceCream = buildIceCream(creation.style, creation.flavors, vessel.topRadius, vessel.slots, vessel.slotRadius);
       iceCream.group.position.y = vessel.topY - 0.04;
       const crown = addToppings(iceCream, creation.toppings);
       this.dessert.add(iceCream.group);
@@ -151,6 +153,11 @@ export class IceCreamScene {
     } else {
       this.crownY = vessel.topY + 0.2;
     }
+
+    // Measure what was actually built - an egg carton is far wider than a cone.
+    const bounds = new THREE.Box3().setFromObject(this.dessert);
+    const size = bounds.getSize(new THREE.Vector3());
+    this.halfWidth = Math.max(size.x, size.z) / 2;
 
     this.popTime = 0;
     this.dirty = true;
@@ -240,7 +247,8 @@ export class IceCreamScene {
     const aspect = this.camera.aspect || 1;
     const target = this.crownY * 0.52;
     const halfHeight = this.crownY * 0.6;
-    const halfWidth = 1.0;
+    // The turntable spins, so the widest axis can swing into view either way.
+    const halfWidth = Math.max(this.halfWidth, 0.8);
 
     // Fit the dessert to whichever axis is tighter, then leave a little air.
     const vFov = (this.camera.fov * Math.PI) / 180;

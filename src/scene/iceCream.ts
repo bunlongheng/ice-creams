@@ -48,16 +48,21 @@ function addMixIns(group: THREE.Group, flavor: Flavor, anchors: readonly Anchor[
   if (mesh) group.add(mesh);
 }
 
-/** Piped soft serve: one coil, or two intertwined coils for a twist. */
+/**
+ * Piped soft serve. One ribbon per flavour, braided around the same helix, so a
+ * two-flavour pick is the classic twist and a five-flavour pick is a rainbow
+ * rope - the flavours are always visible as part of the swirl.
+ */
 function buildSoftServe(flavors: readonly Flavor[], mountRadius: number, seed: number): BuiltIceCream {
   const group = new THREE.Group();
   const anchors: Anchor[] = [];
-  const twist = flavors.length > 1;
-  const coilRadius = twist ? 0.2 : 0.26;
-  const tubeAt = (t: number) => (twist ? 0.15 : 0.215) * (1 - t * 0.62);
+  const ribbons = flavors.length;
+  const coilRadius = ribbons > 1 ? 0.21 : 0.26;
+  // More ribbons share the same rope, so each one gets thinner.
+  const tubeAt = (t: number) => (0.215 / (1 + (ribbons - 1) * 0.42)) * (1 - t * 0.62);
 
   flavors.forEach((flavor, index) => {
-    const phase = twist ? index * Math.PI : 0;
+    const phase = ribbons > 1 ? (index / ribbons) * Math.PI * 2 : 0;
     const curve = swirlCurve(SOFT_HEIGHT, coilRadius, 2.7, phase);
     const mesh = new THREE.Mesh(sweptTube(curve, 220, 22, tubeAt), iceCreamMaterial(flavor));
     mesh.castShadow = true;
@@ -104,11 +109,18 @@ function buildSoftServe(flavors: readonly Flavor[], mountRadius: number, seed: n
   };
 }
 
-/** Hand-dug scoops stacked in the vessel. */
-function buildScoops(flavors: readonly Flavor[], mountRadius: number, seed: number): BuiltIceCream {
+/** Hand-dug scoops, stacked in the vessel or dropped one per well. */
+function buildScoops(
+  flavors: readonly Flavor[],
+  mountRadius: number,
+  seed: number,
+  slots?: readonly THREE.Vector3[],
+  slotRadius?: number,
+): BuiltIceCream {
   const group = new THREE.Group();
   const anchors: Anchor[] = [];
-  const radius = Math.min(Math.max(mountRadius * 0.92, 0.4), 0.52);
+  // A scoop dropped into a well is sized by the well, not by the rim.
+  const radius = slots && slotRadius ? slotRadius : Math.min(Math.max(mountRadius * 0.92, 0.4), 0.52);
   const rng = makeRng(seed);
 
   let topY = 0;
@@ -117,15 +129,18 @@ function buildScoops(flavors: readonly Flavor[], mountRadius: number, seed: numb
   flavors.forEach((flavor, index) => {
     const geometry = scoopGeometry(radius, seed + index * 17);
     const mesh = new THREE.Mesh(geometry, iceCreamMaterial(flavor));
+    const slot = slots?.[index % Math.max(slots.length, 1)];
     const jitter = index === 0 ? 0 : (rng() - 0.5) * radius * 0.22;
-    const y = radius * 0.8 + index * radius * 1.34;
-    mesh.position.set(jitter, y, (rng() - 0.5) * radius * 0.22);
+    const y = slot ? radius * 0.62 : radius * 0.8 + index * radius * 1.34;
+    if (slot) mesh.position.set(slot.x, y, slot.z);
+    else mesh.position.set(jitter, y, (rng() - 0.5) * radius * 0.22);
     mesh.rotation.y = rng() * Math.PI * 2;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     group.add(mesh);
 
-    const isTop = index === flavors.length - 1;
+    // Side by side, every scoop is a "top" scoop - all of them take toppings.
+    const isTop = Boolean(slot) || index === flavors.length - 1;
     const scoopAnchors: Anchor[] = [];
     // Fibonacci sphere - even scatter without clumping.
     const samples = isTop ? 90 : 34;
@@ -146,9 +161,11 @@ function buildScoops(flavors: readonly Flavor[], mountRadius: number, seed: numb
     }
     anchors.push(...scoopAnchors);
     addMixIns(group, flavor, scoopAnchors, seed + index * 31);
-    topY = y + radius;
-    topCenter.copy(mesh.position);
-    topSeed = seed + index * 17;
+    if (y + radius >= topY) {
+      topY = y + radius;
+      topCenter.copy(mesh.position);
+      topSeed = seed + index * 17;
+    }
   });
 
   return {
@@ -165,6 +182,8 @@ export function buildIceCream(
   style: StyleId,
   flavorIds: readonly string[],
   mountRadius: number,
+  slots?: readonly THREE.Vector3[],
+  slotRadius?: number,
 ): BuiltIceCream {
   const flavors = flavorIds.map(getFlavor).filter((flavor): flavor is Flavor => Boolean(flavor));
   const seed = hashString(`${style}:${flavorIds.join(",")}`);
@@ -177,5 +196,7 @@ export function buildIceCream(
       sauceMount: { center: new THREE.Vector3(), radius: mountRadius, bulgeSeed: null },
     };
   }
-  return style === "soft" ? buildSoftServe(flavors, mountRadius, seed) : buildScoops(flavors, mountRadius, seed);
+  return style === "soft"
+    ? buildSoftServe(flavors, mountRadius, seed)
+    : buildScoops(flavors, mountRadius, seed, slots, slotRadius);
 }
