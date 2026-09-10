@@ -59,15 +59,15 @@ export function Celebration({ serveId, headline, onAgain }: CelebrationProps) {
         />
       ))}
 
-      <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 p-4 sm:gap-4 sm:p-6">
-        <p className="animate-float-up rounded-3xl bg-cocoa px-5 py-3 text-center font-display text-2xl text-butter shadow-xl sm:text-4xl">
+      <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-center gap-2 p-3 sm:gap-4 sm:p-5">
+        <p className="animate-float-up rounded-3xl bg-cocoa px-4 py-2 text-center font-display text-xl text-butter shadow-xl sm:px-5 sm:py-3 sm:text-3xl">
           {headline}
         </p>
         <button
           ref={againRef}
           type="button"
           onClick={onAgain}
-          className="sticker pointer-events-auto animate-float-up cursor-pointer bg-mint px-7 py-4 font-display text-xl text-cocoa sm:text-2xl"
+          className="sticker pointer-events-auto animate-float-up cursor-pointer bg-mint px-5 py-3 font-display text-lg text-cocoa sm:px-7 sm:py-4 sm:text-2xl"
         >
           Make another!
         </button>

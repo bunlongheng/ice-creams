@@ -116,14 +116,14 @@ function buildCakeCone(): BuiltVessel {
 
 function buildSundae(): BuiltVessel {
   const group = new THREE.Group();
-  group.add(shell(SUNDAE_GLASS, glassMaterial("#EAF7FF", 0.22)));
+  group.add(shell(SUNDAE_GLASS, glassMaterial("#EAF7FF", 0.17)));
   return { group, topY: 0.98, topRadius: 0.56 };
 }
 
 /** A root-beer float: fizzy soda in a tall glass, ice cream bobbing on top. */
 function buildFloat(): BuiltVessel {
   const group = new THREE.Group();
-  group.add(shell(FLOAT_GLASS, glassMaterial("#F2FAFF", 0.22)));
+  group.add(shell(FLOAT_GLASS, glassMaterial("#F2FAFF", 0.16)));
 
   const soda = new THREE.Mesh(latheProfile(FLOAT_GLASS.map(([x, y]) => [x * 0.9, y * 0.86] as [number, number])), sodaMaterial());
   soda.position.y = 0.02;

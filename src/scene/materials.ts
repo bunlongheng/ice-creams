@@ -49,15 +49,20 @@ export function coneMaterial(kind: "waffle" | "wafer"): THREE.MeshStandardMateri
   });
 }
 
-export function glassMaterial(tint = "#ffffff", opacity = 0.2): THREE.MeshPhysicalMaterial {
+export function glassMaterial(tint = "#ffffff", opacity = 0.16): THREE.MeshPhysicalMaterial {
   return new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(tint),
-    roughness: 0.06,
+    roughness: 0.04,
     metalness: 0,
     transparent: true,
     opacity,
+    // A high IOR plus a strong clear coat gives glassy edges without the cost
+    // of real transmission, which needs a render target every frame.
+    ior: 1.5,
+    specularIntensity: 1,
+    envMapIntensity: 2.2,
     clearcoat: 1,
-    clearcoatRoughness: 0.04,
+    clearcoatRoughness: 0.03,
     side: THREE.DoubleSide,
     depthWrite: false,
   });
