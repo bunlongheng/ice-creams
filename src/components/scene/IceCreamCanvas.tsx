@@ -52,7 +52,7 @@ export function IceCreamCanvas({ creation }: IceCreamCanvasProps) {
 
   useEffect(() => {
     sceneRef.current?.setCreation(dessert);
-  }, [dessert, supported]);
+  }, [dessert]);
 
   useEffect(() => {
     if (creation.servedCount > 0) sceneRef.current?.celebrate(creation.servedCount);
@@ -82,7 +82,10 @@ export function IceCreamCanvas({ creation }: IceCreamCanvasProps) {
 function hasWebGL(): boolean {
   try {
     const probe = document.createElement("canvas");
-    return Boolean(probe.getContext("webgl2") ?? probe.getContext("webgl"));
+    const context = probe.getContext("webgl2") ?? probe.getContext("webgl");
+    // Browsers cap live contexts, so hand this one straight back.
+    context?.getExtension("WEBGL_lose_context")?.loseContext();
+    return Boolean(context);
   } catch {
     return false;
   }

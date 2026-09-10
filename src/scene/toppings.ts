@@ -141,9 +141,12 @@ export function addToppings(iceCream: BuiltIceCream, toppingIds: readonly string
   const rng = makeRng(hashString(toppingIds.join(",")) + 7);
   let crownY = iceCream.topPoint.y;
 
-  // Sauces go on first so everything else sits on top of them.
-  for (const topping of toppings.filter((t) => t.kind === "sauce")) {
-    const { center, radius, bulgeSeed } = iceCream.sauceMount;
+  // Sauces go on first so everything else sits on top of them. A second sauce is
+  // poured a hair wider so the two nest instead of fighting for the same surface.
+  const sauces = toppings.filter((topping) => topping.kind === "sauce");
+  sauces.forEach((topping, index) => {
+    const { center, bulgeSeed } = iceCream.sauceMount;
+    const radius = iceCream.sauceMount.radius * (1 + index * 0.045);
     const geometry = sauceGeometry(radius, hashString(topping.id) % 500, (direction) =>
       bulgeSeed === null ? 1 : scoopBulge(direction, bulgeSeed),
     );
@@ -152,7 +155,7 @@ export function addToppings(iceCream: BuiltIceCream, toppingIds: readonly string
     mesh.castShadow = true;
     iceCream.group.add(mesh);
     crownY = Math.max(crownY, center.y + radius);
-  }
+  });
 
   if (toppings.some((t) => t.kind === "cream")) {
     const cream = whippedCream();

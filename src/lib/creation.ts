@@ -73,7 +73,9 @@ export function reachableSteps(state: Creation): Step[] {
   const steps: Step[] = ["style"];
   if (state.style) steps.push("flavor");
   if (state.flavors.length > 0) steps.push("vessel");
-  if (state.vessel) steps.push("topping");
+  // Toppings need something to sit on, so a deselected flavour closes the step
+  // again rather than leaving a step that cannot be served.
+  if (state.vessel && state.flavors.length > 0) steps.push("topping");
   return steps;
 }
 
@@ -96,8 +98,7 @@ export function creationReducer(state: Creation, action: CreationAction): Creati
       if (!isStyleId(action.id)) return state;
       if (state.style === action.id) return { ...state, step: "flavor" };
       // Switching style changes what the flavours mean, so start the stack fresh.
-      const next: Creation = { ...state, style: action.id, flavors: [], step: "flavor" };
-      return next;
+      return { ...state, style: action.id, flavors: [], step: "flavor" };
     }
 
     case "toggleFlavor": {
@@ -121,7 +122,7 @@ export function creationReducer(state: Creation, action: CreationAction): Creati
     }
 
     case "goToStep":
-      return STEPS.includes(action.step) ? { ...state, step: action.step } : state;
+      return { ...state, step: action.step };
 
     case "next":
       return { ...state, step: clampStep(stepIndex(state.step) + 1) };
@@ -136,7 +137,13 @@ export function creationReducer(state: Creation, action: CreationAction): Creati
     case "startOver":
       // Resetting an untouched order should not hand the scene new arrays to
       // rebuild from - see IceCreamCanvas.
-      if (state.style === null && state.flavors.length === 0 && state.toppings.length === 0 && state.step === "style") {
+      if (
+        state.style === null &&
+        state.vessel === null &&
+        state.flavors.length === 0 &&
+        state.toppings.length === 0 &&
+        state.step === "style"
+      ) {
         return state;
       }
       return { ...emptyCreation(), servedCount: state.servedCount };

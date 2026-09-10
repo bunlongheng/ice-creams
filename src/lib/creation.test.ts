@@ -123,15 +123,18 @@ describe("creationReducer", () => {
   it("only offers steps the child has already answered", () => {
     expect(reachableSteps(emptyCreation())).toEqual(["style"]);
     expect(reachableSteps(build({ type: "setStyle", id: "soft" }))).toEqual(["style", "flavor"]);
-    expect(
-      reachableSteps(
-        build(
-          { type: "setStyle", id: "soft" },
-          { type: "toggleFlavor", id: "vanilla" },
-          { type: "setVessel", id: "cup" },
-        ),
-      ),
-    ).toEqual(["style", "flavor", "vessel", "topping"]);
+
+    const ready = build(
+      { type: "setStyle", id: "soft" },
+      { type: "toggleFlavor", id: "vanilla" },
+      { type: "setVessel", id: "cup" },
+    );
+    expect(reachableSteps(ready)).toEqual(["style", "flavor", "vessel", "topping"]);
+
+    // Taking the flavour back off closes the topping step again - otherwise the
+    // child could reach a step whose Serve button can never light up.
+    const emptied = creationReducer(ready, { type: "toggleFlavor", id: "vanilla" });
+    expect(reachableSteps(emptied)).toEqual(["style", "flavor"]);
   });
 
   it("treats resetting an untouched order as a no-op", () => {

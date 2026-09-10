@@ -23,7 +23,7 @@ export class IceCreamScene {
   private readonly sparkles = new SparkleBurst();
   private readonly glow: THREE.Mesh;
   private readonly keyLight: THREE.DirectionalLight;
-  private readonly clock = new THREE.Clock();
+  private readonly timer = new THREE.Timer();
   private readonly resizeObserver: ResizeObserver;
   private readonly environmentTarget: THREE.WebGLRenderTarget;
   private readonly motionQuery: MediaQueryList;
@@ -36,6 +36,8 @@ export class IceCreamScene {
   private lastPointerX = 0;
   private spin = 0;
   private spinVelocity = 0;
+  /** Set whenever something changes that the next frame has to draw. */
+  private dirty = true;
   private reducedMotion = false;
   private disposed = false;
 
@@ -48,7 +50,6 @@ export class IceCreamScene {
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
 
@@ -151,6 +152,7 @@ export class IceCreamScene {
     }
 
     this.popTime = 0;
+    this.dirty = true;
     this.frameCamera();
   }
 
@@ -158,6 +160,7 @@ export class IceCreamScene {
   celebrate(seed = 1): void {
     if (this.disposed) return;
     this.serveTime = 0;
+    this.dirty = true;
     if (this.reducedMotion) return;
     this.spinVelocity = 7.5;
     this.sparkles.fire(new THREE.Vector3(0, this.crownY * 0.86, 0), hashString(String(seed)) % 9999);
@@ -187,12 +190,12 @@ export class IceCreamScene {
 
   private onMotionPreferenceChange = (event: MediaQueryListEvent) => {
     this.reducedMotion = event.matches;
+    this.dirty = true;
   };
 
   /** Idempotent: never leaves two render loops running at once. */
   private start(): void {
     if (this.frame !== 0 || this.disposed || document.hidden) return;
-    this.clock.getDelta();
     this.frame = requestAnimationFrame(this.tick);
   }
 
@@ -219,6 +222,7 @@ export class IceCreamScene {
     this.lastPointerX = event.clientX;
     this.spin += delta * 0.01;
     this.spinVelocity = delta * 0.25;
+    this.dirty = true;
   };
 
   private onPointerUp = (event: PointerEvent) => {
@@ -249,17 +253,19 @@ export class IceCreamScene {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.frameCamera();
+    this.dirty = true;
   };
 
-  private tick = () => {
+  private tick = (timestamp: number) => {
     if (this.disposed) {
       this.frame = 0;
       return;
     }
     this.frame = requestAnimationFrame(this.tick);
 
-    const delta = Math.min(this.clock.getDelta(), 0.05);
-    const elapsed = this.clock.elapsedTime;
+    this.timer.update(timestamp);
+    const delta = Math.min(this.timer.getDelta(), 0.05);
+    const elapsed = this.timer.getElapsed();
 
     if (!this.dragging) {
       this.spin += (this.reducedMotion ? 0 : 0.22) * delta + this.spinVelocity * delta;
@@ -300,6 +306,19 @@ export class IceCreamScene {
     this.glow.position.y = this.crownY * 0.8;
     this.glow.quaternion.copy(this.camera.quaternion);
     this.sparkles.update(delta);
+
+    // With reduced motion the dessert just sits there, so skip the draw entirely
+    // once everything has settled - it is the same picture, and this app runs on
+    // battery-powered tablets.
+    const animating =
+      !this.reducedMotion ||
+      this.dragging ||
+      this.popTime !== Infinity ||
+      this.serveTime !== Infinity ||
+      Math.abs(this.spinVelocity) > 0.001;
+    if (!animating && !this.dirty) return;
+
+    this.dirty = false;
     this.renderer.render(this.scene, this.camera);
   };
 }

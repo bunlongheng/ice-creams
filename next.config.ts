@@ -12,9 +12,8 @@ const securityHeaders = [
       // Fonts are self-hosted by next/font, so no third-party origins are needed.
       "style-src 'self' 'unsafe-inline'",
       "font-src 'self'",
-      "img-src 'self' data: blob:",
+      "img-src 'self' data:",
       "connect-src 'self'",
-      "worker-src 'self' blob:",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",

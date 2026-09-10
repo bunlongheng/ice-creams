@@ -3,7 +3,14 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useSyncExternalStore } from "react";
 import { FLAVORS, STYLES, TOPPINGS, VESSELS, getFlavor, getStyle, getVessel } from "@/lib/catalog";
-import { creationReducer, emptyCreation, isServable, reachableSteps, type Step } from "@/lib/creation";
+import {
+  creationReducer,
+  emptyCreation,
+  isServable,
+  reachableSteps,
+  type CreationAction,
+  type Step,
+} from "@/lib/creation";
 import { sounds } from "@/lib/sound";
 import { CustomerArt, FlavorArt, ScoopsArt, SoftServeArt, ToppingArt, VesselArt } from "@/components/ui/Art";
 import { Celebration } from "@/components/ui/Celebration";
@@ -38,6 +45,10 @@ export function Shop() {
   const muted = useSyncExternalStore(sounds.subscribe, sounds.isMuted, sounds.isMutedOnServer);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const lastStep = useRef(creation.step);
+  // A toddler taps twice in the time the screen takes to change. Ignore the
+  // second tap so it cannot undo the celebration or hit whatever moved under it.
+  const stepChangedAt = useRef(0);
+  const settled = () => Date.now() - stepChangedAt.current > 400;
 
   // Each step swaps the whole grid, so send focus (and the screen reader) to the
   // new question instead of dropping focus on the unmounted button. Not on first
@@ -45,8 +56,16 @@ export function Shop() {
   useEffect(() => {
     const changed = lastStep.current !== creation.step;
     lastStep.current = creation.step;
-    if (changed && creation.step !== "serve") headingRef.current?.focus();
+    if (!changed) return;
+    stepChangedAt.current = Date.now();
+    if (creation.step !== "serve") headingRef.current?.focus();
   }, [creation.step]);
+
+  const pick = useCallback((action: CreationAction) => {
+    if (!settled()) return;
+    sounds.play("pick");
+    dispatch(action);
+  }, []);
 
   const toggleMuted = useCallback(() => {
     sounds.setMuted(!sounds.isMuted());
@@ -54,6 +73,7 @@ export function Shop() {
   }, []);
 
   const choose = useCallback((step: Step, id: string) => {
+    if (!settled()) return;
     switch (step) {
       case "style":
         sounds.play("scoop");
@@ -79,11 +99,13 @@ export function Shop() {
   }, []);
 
   const serve = useCallback(() => {
+    if (!settled()) return;
     sounds.play("serve");
     dispatch({ type: "serve" });
   }, []);
 
   const startOver = useCallback(() => {
+    if (!settled()) return;
     sounds.play("reset");
     dispatch({ type: "startOver" });
   }, []);
@@ -168,16 +190,15 @@ export function Shop() {
         <section
           aria-label="Build your order"
           className={`flex min-h-0 flex-col gap-3 rounded-[2rem] bg-vanilla/70 p-3 shadow-lg backdrop-blur-sm sm:gap-4 sm:rounded-[2.5rem] sm:p-4 ${
-            served ? "max-lg:portrait:hidden" : ""
+            // Two-column layouts keep the panel; single-column ones give the
+            // whole screen to the celebration.
+            served ? "max-lg:portrait:hidden max-sm:hidden" : ""
           }`}
         >
           <StepBar
             current={creation.step === "serve" ? "topping" : creation.step}
             reachable={reachable}
-            onGoTo={(step) => {
-              sounds.play("pick");
-              dispatch({ type: "goToStep", step });
-            }}
+            onGoTo={(step) => pick({ type: "goToStep", step })}
           />
 
           {/* Focusing the heading is what announces the new step - an extra
@@ -205,26 +226,16 @@ export function Shop() {
             {creation.step !== "style" && !served && (
               <button
                 type="button"
-                onClick={() => {
-                  sounds.play("pick");
-                  dispatch({ type: "back" });
-                }}
+                onClick={() => pick({ type: "back" })}
                 className="sticker flex h-16 w-16 shrink-0 items-center justify-center bg-vanilla"
                 aria-label="Go back a step"
               >
-                <svg viewBox="0 0 24 24" className="h-7 w-7" aria-hidden="true">
-                  <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <Chevron direction="left" className="h-7 w-7" />
               </button>
             )}
 
             {creation.step === "flavor" && creation.flavors.length > 0 && (
-              <NextButton
-                onClick={() => {
-                  sounds.play("pick");
-                  dispatch({ type: "next" });
-                }}
-              />
+              <NextButton onClick={() => pick({ type: "next" })} />
             )}
 
             {(creation.step === "topping" || creation.step === "serve" || creation.step === "vessel") && (
@@ -244,6 +255,21 @@ export function Shop() {
   );
 }
 
+function Chevron({ direction, className }: { direction: "left" | "right"; className: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path
+        d={direction === "left" ? "M15 5l-7 7 7 7" : "M9 5l7 7-7 7"}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function NextButton({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -252,9 +278,7 @@ function NextButton({ onClick }: { onClick: () => void }) {
       className="sticker flex h-16 flex-1 items-center justify-center gap-2 bg-mint font-display text-xl text-cocoa sm:h-20 sm:text-2xl"
     >
       Next
-      <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
-        <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+      <Chevron direction="right" className="h-6 w-6" />
     </button>
   );
 }
