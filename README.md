@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/icon-512.png" alt="Mila's Ice Cream Shop" width="128">
+
 # Mila's Ice Cream Shop
 
 **A pretend-play ice cream shop in 3D, built for a two-and-a-half-year-old.**
@@ -134,7 +136,8 @@ src/
     layout.tsx          Fonts, metadata, viewport
     page.tsx            Renders the shop
     globals.css         Design tokens, the sticker button, the awning, keyframes
-    icon.svg            Favicon
+    icon.png            App icon (favicon)
+    apple-icon.png      Home-screen icon
   components/
     Shop.tsx            The one stateful component: order state, steps, sounds
     scene/
@@ -162,7 +165,9 @@ src/
     scatter.ts          Instanced scattering of bits over a surface
     textures.ts         Canvas-drawn textures - no image assets
     sparkles.ts         The celebration particle burst
-docs/screenshots/       README images
+docs/
+  icon-512.png          App icon
+  screenshots/          README images
 ```
 
 ## How the 3D works
