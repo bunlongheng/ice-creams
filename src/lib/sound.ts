@@ -4,7 +4,7 @@
  * first tap because browsers block audio before a gesture.
  */
 
-export type SoundName = "pick" | "scoop" | "sprinkle" | "pour" | "serve" | "reset";
+export type SoundName = "pick" | "scoop" | "sprinkle" | "pour" | "serve" | "reset" | "coin";
 
 const STORAGE_KEY = "ice-creams:muted";
 
@@ -131,6 +131,14 @@ class SoundBoard {
         });
         this.tone(context, { type: "sine", from: 1568, to: 2093, start: 0.4, duration: 0.7, gain: 0.3 });
         this.noise(context, { start: 0.36, duration: 0.6, frequency: 6400, gain: 0.28 });
+        break;
+      }
+      case "coin": {
+        // The arcade ka-ching: two bright notes and a little shimmer of change.
+        this.tone(context, { type: "square", from: 987.77, to: 987.77, start: 0, duration: 0.09, gain: 0.28 });
+        this.tone(context, { type: "square", from: 1318.51, to: 1318.51, start: 0.08, duration: 0.24, gain: 0.28 });
+        this.tone(context, { type: "sine", from: 2637, to: 3136, start: 0.1, duration: 0.3, gain: 0.14 });
+        this.noise(context, { start: 0.09, duration: 0.22, frequency: 7200, gain: 0.2 });
         break;
       }
       case "reset":

@@ -11,10 +11,13 @@ import {
   type CreationAction,
   type Step,
 } from "@/lib/creation";
+import { bestMatch, emptyOrderBook, ordersReducer } from "@/lib/orders";
 import { sounds, type SoundName } from "@/lib/sound";
 import { CustomerArt, FlavorArt, ScoopsArt, SoftServeArt, ToppingArt, VesselArt } from "@/components/ui/Art";
 import { Celebration } from "@/components/ui/Celebration";
 import { ChoiceGrid, type Choice } from "@/components/ui/ChoiceGrid";
+import { CoinCounter } from "@/components/ui/CoinCounter";
+import { OrderTickets } from "@/components/ui/OrderTickets";
 import { StepBar } from "@/components/ui/StepBar";
 
 // Three.js only runs in the browser, and it is by far the heaviest chunk.
@@ -48,9 +51,12 @@ const STEP_GUARD_MS = 300;
 const SERVE_GUARD_MS = 1200;
 
 const CHEERS = ["Yay! Thank you!", "Yummy! You are the best!", "Wow, that is beautiful!", "My favourite ever!"];
+/** Said when the serve filled the order the customer actually asked for. */
+const PERFECT_CHEERS = ["That is exactly it!", "My order! Thank you!", "Just what I wanted!"];
 
 export function Shop() {
   const [creation, dispatch] = useReducer(creationReducer, undefined, emptyCreation);
+  const [orders, dispatchOrders] = useReducer(ordersReducer, undefined, emptyOrderBook);
   const muted = useSyncExternalStore(sounds.subscribe, sounds.isMuted, sounds.isMutedOnServer);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const lastStep = useRef(creation.step);
@@ -61,10 +67,13 @@ export function Shop() {
    * longer one, because the ta-da is the reward and should not be tappable away.
    */
   const guardUntil = useRef(0);
+  const coinTimer = useRef(0);
   const guard = (ms: number) => {
     guardUntil.current = Date.now() + ms;
   };
   const settled = () => Date.now() >= guardUntil.current;
+
+  useEffect(() => () => window.clearTimeout(coinTimer.current), []);
 
   // Each step swaps the whole grid, so send focus (and the screen reader) to the
   // new question instead of dropping focus on the unmounted button. Not on first
@@ -75,12 +84,16 @@ export function Shop() {
     if (changed && creation.step !== "serve") headingRef.current?.focus();
   }, [creation.step]);
 
-  /** Guard, play the sound, dispatch - the one path every control takes. */
-  const act = useCallback((action: CreationAction, sound: SoundName, guardMs = STEP_GUARD_MS) => {
-    if (!settled()) return;
+  /**
+   * Guard, play the sound, dispatch - the one path every control takes.
+   * Returns whether the tap actually got through, which the till needs to know.
+   */
+  const act = useCallback((action: CreationAction, sound: SoundName, guardMs = STEP_GUARD_MS): boolean => {
+    if (!settled()) return false;
     guard(guardMs);
     sounds.play(sound);
     dispatch(action);
+    return true;
   }, []);
 
   const pick = useCallback((action: CreationAction) => act(action, "pick"), [act]);
@@ -113,7 +126,15 @@ export function Shop() {
 
   // The serve guard is long enough to watch the confetti before the screen
   // responds again - the ta-da is the reward, it should not be tappable away.
-  const serve = useCallback(() => act({ type: "serve" }, "serve", SERVE_GUARD_MS), [act]);
+  const serve = useCallback(() => {
+    if (!isServable(creation)) return;
+    // Only ring the till if the guard actually let the serve through, or a
+    // double tap would pay for the same ice cream twice.
+    if (!act({ type: "serve" }, "serve", SERVE_GUARD_MS)) return;
+    dispatchOrders({ type: "serve", creation });
+    // The coins land a beat after the fanfare, so both are audible.
+    coinTimer.current = window.setTimeout(() => sounds.play("coin"), 420);
+  }, [act, creation]);
   const startOver = useCallback(() => act({ type: "startOver" }, "reset"), [act]);
 
   const styleChoices = useMemo<Choice[]>(
@@ -148,11 +169,19 @@ export function Shop() {
   );
 
   const served = creation.step === "serve";
+  /** What the creation on the counter would earn right now. */
+  const pending = useMemo(() => bestMatch(orders.queue, creation), [orders.queue, creation]);
+  const reward = orders.lastReward;
   const canServe = isServable(creation);
   const reachable = reachableSteps(creation);
 
   const customerLine = useMemo(() => {
-    if (served) return CHEERS[creation.servedCount % CHEERS.length] ?? CHEERS[0];
+    if (served) {
+      if (reward?.orderId !== null && reward?.flavorMatched && reward?.vesselMatched) {
+        return PERFECT_CHEERS[creation.servedCount % PERFECT_CHEERS.length] ?? PERFECT_CHEERS[0];
+      }
+      return CHEERS[creation.servedCount % CHEERS.length] ?? CHEERS[0];
+    }
     if (creation.toppings.length > 0) return "Ooh, sprinkles! Yes please!";
     if (creation.vessel) return `A ${getVessel(creation.vessel)?.name.toLowerCase()}, perfect!`;
     if (creation.flavors.length > 0) {
@@ -161,11 +190,18 @@ export function Shop() {
     }
     if (creation.style) return getStyle(creation.style)?.cheer ?? "Yum!";
     return "Hi! Can I have an ice cream?";
-  }, [served, creation.servedCount, creation.toppings.length, creation.vessel, creation.flavors, creation.style]);
+  }, [served, reward, creation.servedCount, creation.toppings.length, creation.vessel, creation.flavors, creation.style]);
 
   return (
     <div className="shop-shell mx-auto flex h-dvh w-full max-w-[1400px] flex-col gap-3 overflow-hidden p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:gap-4 sm:p-5">
-      <ShopSign muted={muted} onToggleMuted={toggleMuted} onStartOver={startOver} />
+      <ShopSign
+        muted={muted}
+        coins={orders.coins}
+        reward={served && reward ? reward.coins : null}
+        rewardKey={creation.servedCount}
+        onToggleMuted={toggleMuted}
+        onStartOver={startOver}
+      />
 
       <main
         className={`grid min-h-0 flex-1 gap-3 sm:gap-4 sm:landscape:grid-cols-[minmax(0,1fr)_minmax(320px,42%)] sm:landscape:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_minmax(380px,460px)] lg:grid-rows-1 ${
@@ -178,22 +214,32 @@ export function Shop() {
         >
           <IceCreamCanvas creation={creation} />
 
-          <div className="pointer-events-none absolute top-3 left-3 flex items-end gap-2 sm:top-4 sm:left-4">
-            <span className="shop-customer block w-12 shrink-0 sm:w-16">
-              <CustomerArt happy={served} />
-            </span>
-            <p
-              key={customerLine}
-              className="shop-bubble animate-pop-in max-w-[13rem] rounded-2xl rounded-bl-sm bg-vanilla px-3 py-2 text-xs font-bold shadow-md sm:text-sm"
-            >
-              {customerLine}
-            </p>
+          {/* The counter: who is waiting on the left, what they want on the right. */}
+          <div className="pointer-events-none absolute inset-x-2 top-2 flex items-start justify-between gap-2 sm:inset-x-4 sm:top-4 sm:gap-3">
+            <div className="flex min-w-0 items-end gap-1.5 sm:gap-2">
+              <span className="shop-customer block w-10 shrink-0 sm:w-16">
+                <CustomerArt happy={served} />
+              </span>
+              <p
+                key={customerLine}
+                className="shop-bubble animate-pop-in max-w-[6.5rem] rounded-2xl rounded-bl-sm bg-vanilla px-2 py-1.5 text-[11px] leading-tight font-bold shadow-md sm:max-w-[13rem] sm:px-3 sm:py-2 sm:text-sm"
+              >
+                {customerLine}
+              </p>
+            </div>
+
+            <OrderTickets
+              orders={orders.queue}
+              wantedFlavors={creation.flavors}
+              wantedVessel={creation.vessel}
+            />
           </div>
 
           {served && (
             <Celebration
               serveId={creation.servedCount}
               headline={STEP_TITLES.serve}
+              coins={reward?.coins ?? null}
               onAgain={startOver}
             />
           )}
@@ -266,7 +312,24 @@ export function Shop() {
                 disabled={!canServe}
                 className="sticker flex h-16 flex-1 items-center justify-center gap-2 bg-strawberry font-display text-2xl text-cocoa disabled:cursor-not-allowed disabled:opacity-40 sm:h-20 sm:text-3xl"
               >
-                {served ? "Start over" : "Serve!"}
+                {served ? (
+                  "Start over"
+                ) : (
+                  <>
+                    Serve!
+                    {canServe && (
+                      // Shows what this creation is worth before she taps, which
+                      // is how the coins connect to the orders on the counter.
+                      <span className="flex items-center gap-1 rounded-full bg-cocoa px-2.5 py-1 font-body text-base font-black text-butter sm:text-lg">
+                        <svg viewBox="0 0 24 24" className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true">
+                          <circle cx="12" cy="12" r="10" fill="#FFD25E" stroke="#4A2C2A" strokeWidth="2" />
+                          <path d="M12 8v8M10 10h3a2 2 0 010 4h-3" fill="none" stroke="#4A2C2A" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
+                        +{pending.coins}
+                      </span>
+                    )}
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -306,10 +369,16 @@ function NextButton({ onClick }: { onClick: () => void }) {
 
 function ShopSign({
   muted,
+  coins,
+  reward,
+  rewardKey,
   onToggleMuted,
   onStartOver,
 }: {
   muted: boolean;
+  coins: number;
+  reward: number | null;
+  rewardKey: number;
   onToggleMuted: () => void;
   onStartOver: () => void;
 }) {
@@ -320,6 +389,7 @@ function ShopSign({
         Mila&apos;s Ice Cream Shop
       </h1>
       <div className="flex items-center gap-2">
+        <CoinCounter coins={coins} reward={reward} rewardKey={rewardKey} />
         <button
           type="button"
           onClick={onToggleMuted}

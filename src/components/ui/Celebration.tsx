@@ -9,11 +9,13 @@ interface CelebrationProps {
   /** Changes on every serve so the overlay replays. */
   serveId: number;
   headline: string;
+  /** Coins this serve earned, shown next to the cheer. */
+  coins: number | null;
   onAgain: () => void;
 }
 
 /** The ta-da overlay: confetti rain, a big cheer, and one button back to play. */
-export function Celebration({ serveId, headline, onAgain }: CelebrationProps) {
+export function Celebration({ serveId, headline, coins, onAgain }: CelebrationProps) {
   const againRef = useRef<HTMLButtonElement>(null);
 
   // A fresh scatter per serve keeps the moment feeling new.
@@ -55,8 +57,17 @@ export function Celebration({ serveId, headline, onAgain }: CelebrationProps) {
       ))}
 
       <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-center gap-2 p-3 sm:gap-4 sm:p-5">
-        <p className="animate-float-up rounded-3xl bg-cocoa px-4 py-2 text-center font-display text-xl text-butter shadow-xl sm:px-5 sm:py-3 sm:text-3xl">
+        <p className="animate-float-up flex items-center gap-2 rounded-3xl bg-cocoa px-4 py-2 text-center font-display text-xl text-butter shadow-xl sm:px-5 sm:py-3 sm:text-3xl">
           {headline}
+          {coins !== null && (
+            <span className="flex items-center gap-1 rounded-full bg-butter px-2.5 py-1 font-body text-base font-black text-cocoa sm:text-xl">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" fill="#FFF3C4" stroke="#4A2C2A" strokeWidth="2" />
+                <path d="M12 8v8M10 10h3a2 2 0 010 4h-3" fill="none" stroke="#4A2C2A" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              +{coins}
+            </span>
+          )}
         </p>
         <button
           ref={againRef}

@@ -31,12 +31,28 @@ she sees. There is no reading required - every button is a picture.
 | **30 flavours** | Vanilla, chocolate, strawberry, mint chip, cookies and cream, cookie dough, caramel, bubblegum, birthday cake, rocky road, pistachio, mango, blueberry, peanut butter, neapolitan, purple cow, raisin, coconut, banana, pina colada, orange, pineapple, peach, coffee, watermelon, lime, lemon, raspberry, cotton candy, cherry |
 | **9 containers** | Cup, waffle cone, cake cone, sundae glass, float, waffle bowl, paper boat, pink egg carton (6 wells, scoops only), frosty cup |
 | **14 toppings** | Sprinkles, Oreo crumbles, cookie pieces, gummy bears, fruit, chocolate chips, peanuts, hot fudge, caramel, whipped cream, marshmallows, cherry |
-| **The ta-da** | Confetti, a sparkle burst, a glow and a little fanfare when the order is served |
+| **Orders and coins** | Three customers wait at the counter with a picture order - one flavour, one container. Filling one pays 5 coins, and anything else still pays 1 |
+| **The ta-da** | Confetti, a sparkle burst, a glow, a fanfare and a coin ka-ching when the order is served |
 
 <div align="center">
 <img src="docs/screenshots/served-desktop.png" alt="The serve celebration with confetti and sparkles" width="440">
 <img src="docs/screenshots/phone.png" alt="The shop on a phone, showing a cotton candy twist" width="200">
 </div>
+
+## Taking orders
+
+Customers queue up with a two-picture ticket: the flavour they want and what to serve it in. When the
+creation on the counter matches a ticket, that ticket lights up green and the Serve button shows what it
+is worth. Serving pays into the till, the customer leaves, and the next one walks in.
+
+**There is no timer anywhere in the game.** A ticket waits as long as it takes. And a serve that matches
+no ticket at all still pays a coin, so making something just because you felt like it is never punished.
+
+| Serve | Pays |
+|---|---|
+| Right flavour and right container | 5 coins |
+| One of the two | 3 coins |
+| Neither - she just made what she wanted | 1 coin |
 
 ## Built for little hands
 
@@ -104,9 +120,12 @@ src/
       ChoiceGrid.tsx    The picture-button grid used by all four steps
       StepBar.tsx       Step progress and back-navigation
       Celebration.tsx   Confetti overlay for the serve moment
+      OrderTickets.tsx  The customers waiting at the counter
+      CoinCounter.tsx   The till, counting up
   lib/
     catalog.ts          Styles, flavours, vessels, toppings - the single source of truth
     creation.ts         Pure reducer for one order (+ unit tests)
+    orders.ts           The order queue, matching and the till (+ unit tests)
     sound.ts            Web Audio synthesis, no audio files
     random.ts           Seeded RNG and value noise (+ unit tests)
   scene/
