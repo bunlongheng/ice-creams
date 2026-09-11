@@ -98,7 +98,8 @@ export type OrderStage = "fresh" | "hurry" | "gone";
 
 export interface Order {
   id: number;
-  flavorId: string;
+  /** One flavour for most containers; six for the egg carton, one per well. */
+  flavorIds: string[];
   vesselId: VesselId;
   /** Nothing, one topping, or two - the rarer, richer tickets. */
   toppingIds: string[];
@@ -107,7 +108,7 @@ export interface Order {
 }
 
 /** Everything one ticket asks for, so the UI can just count the pictures. */
-export const orderSize = (order: Order): number => 2 + order.toppingIds.length;
+export const orderSize = (order: Order): number => 1 + order.flavorIds.length + order.toppingIds.length;
 
 export interface Reward {
   coins: number;
@@ -115,8 +116,11 @@ export interface Reward {
   tip: number;
   /** The order this serve filled, if it matched one at all. */
   orderId: number | null;
+  /** True once every flavour on the ticket is in the ice cream. */
   flavorMatched: boolean;
   vesselMatched: boolean;
+  /** How many of the ticket's flavours made it in. */
+  flavorsMatched: number;
   /** Which of the ticket's toppings actually made it onto the ice cream. */
   toppingsMatched: number;
   /** True when every single thing the ticket asked for is there. */
@@ -155,8 +159,16 @@ const pick = <T,>(rows: readonly T[], rng: () => number): T => rows[Math.floor(r
 
 export function makeOrder(id: number, createdAt: number): Order {
   const rng = makeRng(id * 2654435761 + 101);
-  const flavorId = pick(ORDER_FLAVORS, rng);
   const vesselId = pick(ORDER_VESSELS, rng);
+
+  // A container with wells wants a different flavour in every well - six for
+  // the egg carton, three for the paper boat.
+  const flavorCount = getVessel(vesselId)?.layout === "slots" ? (getVessel(vesselId)?.maxScoops ?? 1) : 1;
+  const flavorIds: string[] = [];
+  while (flavorIds.length < flavorCount) {
+    const flavor = pick(ORDER_FLAVORS, rng);
+    if (!flavorIds.includes(flavor)) flavorIds.push(flavor);
+  }
 
   const roll = rng();
   const wanted = EXTRA_TOPPING_ODDS.find(([chance]) => roll < chance)?.[1] ?? 0;
@@ -166,7 +178,7 @@ export function makeOrder(id: number, createdAt: number): Order {
     if (!toppingIds.includes(topping)) toppingIds.push(topping);
   }
 
-  return { id, flavorId, vesselId, toppingIds, createdAt };
+  return { id, flavorIds, vesselId, toppingIds, createdAt };
 }
 
 export function emptyOrderBook(now = Date.now()): OrderBook {
@@ -182,7 +194,8 @@ export function emptyOrderBook(now = Date.now()): OrderBook {
 
 /** What one order is worth against what she actually made. */
 export function scoreOrder(order: Order, creation: Creation, now: number): Reward {
-  const flavorMatched = creation.flavors.includes(order.flavorId);
+  const flavorsMatched = order.flavorIds.filter((id) => creation.flavors.includes(id)).length;
+  const flavorMatched = flavorsMatched === order.flavorIds.length;
   const vesselMatched = creation.vessel === order.vesselId;
   const toppingsMatched = order.toppingIds.filter((id) => creation.toppings.includes(id)).length;
   const complete = flavorMatched && vesselMatched && toppingsMatched === order.toppingIds.length;
@@ -192,12 +205,13 @@ export function scoreOrder(order: Order, creation: Creation, now: number): Rewar
     orderId: order.id,
     flavorMatched,
     vesselMatched,
+    flavorsMatched,
     toppingsMatched,
     complete,
     tip,
     coins:
       COINS_FOR_SERVING +
-      (flavorMatched ? COINS_FOR_FLAVOR : 0) +
+      flavorsMatched * COINS_FOR_FLAVOR +
       (vesselMatched ? COINS_FOR_VESSEL : 0) +
       toppingsMatched * COINS_FOR_TOPPING +
       tip,
@@ -215,6 +229,7 @@ export function bestMatch(queue: readonly Order[], creation: Creation, now: numb
     orderId: null,
     flavorMatched: false,
     vesselMatched: false,
+    flavorsMatched: 0,
     toppingsMatched: 0,
     complete: false,
   };
@@ -276,9 +291,9 @@ export function ordersReducer(state: OrderBook, action: OrderAction): OrderBook 
  * to match both the ticket art and the order of the steps.
  */
 export function describeOrder(order: Order): string {
-  const flavor = getFlavor(order.flavorId)?.name ?? order.flavorId;
+  const flavors = order.flavorIds.map((id) => getFlavor(id)?.name ?? id).join(", ");
   const vessel = getVessel(order.vesselId)?.name ?? order.vesselId;
   const toppings = order.toppingIds.map((id) => getTopping(id)?.name ?? id);
-  const base = `a ${vessel.toLowerCase()} of ${flavor.toLowerCase()}`;
+  const base = `a ${vessel.toLowerCase()} of ${flavors.toLowerCase()}`;
   return toppings.length > 0 ? `${base} with ${toppings.join(" and ").toLowerCase()}` : base;
 }

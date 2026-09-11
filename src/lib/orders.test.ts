@@ -4,9 +4,11 @@ import { creationReducer, emptyCreation, type Creation } from "./creation";
 import {
   ARRIVAL_EVERY_MS,
   CALM_MS,
+  COINS_FOR_FLAVOR,
   COINS_FOR_PERFECT,
   COINS_FOR_SERVING,
   COINS_FOR_TOPPING,
+  COINS_FOR_VESSEL,
   PATIENCE_MS,
   QUEUE_SIZE,
   bestMatch,
@@ -33,17 +35,21 @@ const built = (flavors: string[], vessel: string, toppings: string[] = []): Crea
 });
 
 /** Exactly what one ticket asked for, nothing more. */
-const fill = (order: Order): Creation => built([order.flavorId], order.vesselId, order.toppingIds);
+const fill = (order: Order): Creation => built([...order.flavorIds], order.vesselId, order.toppingIds);
 
 /** What that ticket pays when filled instantly. */
 const perfectCoins = (order: Order): number =>
-  COINS_FOR_PERFECT + order.toppingIds.length * COINS_FOR_TOPPING + tipFor(0);
+  COINS_FOR_SERVING +
+  order.flavorIds.length * COINS_FOR_FLAVOR +
+  COINS_FOR_VESSEL +
+  order.toppingIds.length * COINS_FOR_TOPPING +
+  tipFor(0);
 
 describe("orders", () => {
   it("only ever asks for flavours and containers that exist", () => {
     for (let id = 1; id <= 60; id++) {
       const order = makeOrder(id, T0);
-      expect(getFlavor(order.flavorId)).toBeDefined();
+      for (const id of order.flavorIds) expect(getFlavor(id)).toBeDefined();
       expect(getVessel(order.vesselId)).toBeDefined();
     }
   });
@@ -51,7 +57,7 @@ describe("orders", () => {
   it("builds the same order for the same id, and different ones over time", () => {
     expect(makeOrder(7, T0)).toEqual(makeOrder(7, T0));
     const first20 = Array.from({ length: 20 }, (_, i) => makeOrder(i + 1, T0));
-    expect(new Set(first20.map((o) => `${o.flavorId}:${o.vesselId}`)).size).toBeGreaterThan(5);
+    expect(new Set(first20.map((o) => `${o.flavorIds.join("+")}:${o.vesselId}`)).size).toBeGreaterThan(5);
   });
 
   it("opens with one customer, not a crowd", () => {
@@ -90,7 +96,10 @@ describe("orders", () => {
   });
 
   it("asks for two things most of the time, three sometimes, four rarely", () => {
-    const sizes = Array.from({ length: 400 }, (_, i) => orderSize(makeOrder(i + 1, T0)));
+    // Containers with wells ask for a flavour per well - measure the ordinary tickets.
+    const sizes = Array.from({ length: 400 }, (_, i) => makeOrder(i + 1, T0))
+      .filter((o) => o.flavorIds.length === 1)
+      .map(orderSize);
     const share = (n: number) => sizes.filter((s) => s === n).length / sizes.length;
 
     expect(new Set(sizes)).toEqual(new Set([2, 3, 4]));
@@ -102,25 +111,41 @@ describe("orders", () => {
 
   it("pays for each topping the ticket asked for, but only tips a full fill", () => {
     const withTopping = Array.from({ length: 60 }, (_, i) => makeOrder(i + 1, T0)).find(
-      (o) => o.toppingIds.length > 0,
+      (o) => o.toppingIds.length > 0 && o.flavorIds.length === 1,
     );
     expect(withTopping).toBeDefined();
     if (!withTopping) return;
 
     // Flavour and container right, topping missing: paid, but no tip.
-    const partial = scoreOrder(withTopping, built([withTopping.flavorId], withTopping.vesselId), T0);
+    const partial = scoreOrder(withTopping, built([...withTopping.flavorIds], withTopping.vesselId), T0);
     expect(partial.complete).toBe(false);
     expect(partial.tip).toBe(0);
-    expect(partial.coins).toBe(COINS_FOR_PERFECT);
+    expect(partial.coins).toBe(perfectCoins(withTopping) - tipFor(0) - withTopping.toppingIds.length * COINS_FOR_TOPPING);
 
     const full = scoreOrder(withTopping, fill(withTopping), T0);
     expect(full.coins).toBeGreaterThan(partial.coins);
   });
 
   it("can ask for a float or an egg carton, not just the easy containers", () => {
-    const vessels = new Set(Array.from({ length: 200 }, (_, i) => makeOrder(i + 1, T0).vesselId));
+    const orders = Array.from({ length: 200 }, (_, i) => makeOrder(i + 1, T0));
+    const vessels = new Set(orders.map((o) => o.vesselId));
     expect(vessels.has("egg-carton")).toBe(true);
     expect(vessels.has("float")).toBe(true);
+  });
+
+  it("wants six different flavours in an egg carton, one per well", () => {
+    const carton = Array.from({ length: 200 }, (_, i) => makeOrder(i + 1, T0)).find((o) => o.vesselId === "egg-carton");
+    expect(carton).toBeDefined();
+    if (!carton) return;
+    expect(carton.flavorIds).toHaveLength(6);
+    expect(new Set(carton.flavorIds).size).toBe(6);
+
+    // Half a carton is paid for half the flavours; the tip waits for all six.
+    const half = scoreOrder(carton, built(carton.flavorIds.slice(0, 3), "egg-carton"), T0);
+    expect(half.flavorsMatched).toBe(3);
+    expect(half.complete).toBe(false);
+    expect(half.tip).toBe(0);
+    expect(scoreOrder(carton, fill(carton), T0).complete).toBe(true);
   });
 
   it("still pays for a creation that matches nothing", () => {
@@ -134,7 +159,7 @@ describe("orders", () => {
 
   it("counts a flavour anywhere in the stack, not just the first scoop", () => {
     const order = makeOrder(2, T0);
-    const reward = scoreOrder(order, built(["coffee", "coconut", order.flavorId], order.vesselId), T0);
+    const reward = scoreOrder(order, built(["coffee", "coconut", ...order.flavorIds], order.vesselId), T0);
     expect(reward.flavorMatched).toBe(true);
   });
 
@@ -186,7 +211,7 @@ describe("orders", () => {
   it("only tips a serve that actually filled the order", () => {
     const order = makeOrder(4, T0);
     // Right flavour, wrong container: paid for the flavour, but no tip.
-    const partial = scoreOrder(order, built([order.flavorId], "rocky-road" as never), T0);
+    const partial = scoreOrder(order, built([...order.flavorIds], "rocky-road" as never), T0);
     expect(partial.tip).toBe(0);
   });
 
@@ -231,10 +256,10 @@ describe("orders", () => {
     const order = makeOrder(3, T0);
     const creation = [
       { type: "setStyle", id: "scoop" },
-      { type: "toggleFlavor", id: order.flavorId },
+      { type: "toggleFlavor", id: order.flavorIds[0] ?? "vanilla" },
       { type: "setVessel", id: order.vesselId },
     ].reduce((state, action) => creationReducer(state, action as never), emptyCreation());
 
-    expect(scoreOrder(order, creation, T0).coins).toBe(COINS_FOR_PERFECT + tipFor(0));
+    expect(scoreOrder(order, creation, T0).coins).toBe(perfectCoins(order));
   });
 });

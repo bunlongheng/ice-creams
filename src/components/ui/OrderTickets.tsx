@@ -46,11 +46,11 @@ export function OrderTickets({ orders, now, wantedFlavors, wantedVessel, wantedT
   return (
     <ul className="flex w-fit flex-col gap-1.5 sm:gap-2" aria-label="Orders waiting">
       {orders.map((order, index) => {
-        const flavor = getFlavor(order.flavorId);
         const vessel = getVessel(order.vesselId);
-        if (!flavor || !vessel) return null;
+        const flavors = order.flavorIds.map(getFlavor).filter((f): f is NonNullable<typeof f> => Boolean(f));
+        if (!vessel || flavors.length === 0) return null;
 
-        const flavorDone = wantedFlavors.includes(order.flavorId);
+        const flavorDone = order.flavorIds.every((id) => wantedFlavors.includes(id));
         const vesselDone = wantedVessel === order.vesselId;
         const toppingsDone = order.toppingIds.every((id) => wantedToppings.includes(id));
         const ready = flavorDone && vesselDone && toppingsDone;
@@ -74,13 +74,15 @@ export function OrderTickets({ orders, now, wantedFlavors, wantedVessel, wantedT
           >
             {/* Container first, then flavour, then toppings - the same order
                 she works through the steps in. */}
-            <span className="flex items-center gap-1">
+            <span className="flex max-w-[11rem] flex-wrap items-center gap-1 sm:max-w-[14rem]">
               <Wanted done={vesselDone}>
                 <VesselArt id={vessel.id} />
               </Wanted>
-              <Wanted done={flavorDone}>
-                <FlavorArt flavor={flavor} />
-              </Wanted>
+              {flavors.map((flavor) => (
+                <Wanted key={flavor.id} done={wantedFlavors.includes(flavor.id)}>
+                  <FlavorArt flavor={flavor} />
+                </Wanted>
+              ))}
               {order.toppingIds.map((id) => {
                 const topping = getTopping(id);
                 if (!topping) return null;

@@ -96,21 +96,18 @@ export function ScoopsArt() {
   );
 }
 
-/** The flavour badge: a scoop on a cone with its fruit, on the flavour's colour. */
+/** The flavour: one scoop, cut from the shopfront badge art. */
 export function FlavorArt({ flavor }: { flavor: Flavor }) {
   return (
-    // The badge keeps its cone small inside a wide ring; zoom in so the scoop
-    // is what she sees at button size.
-    <span className="block aspect-square w-full overflow-hidden rounded-full">
-      <Image
-        src={`/flavors/${flavor.id}.png`}
-        alt=""
-        width={96}
-        height={96}
-        className="block h-full w-full scale-[1.32] rounded-full"
-        draggable={false}
-      />
-    </span>
+    // Just the scoop - the container is its own step, so no cone here.
+    <Image
+      src={`/flavors/${flavor.id}.png`}
+      alt=""
+      width={96}
+      height={96}
+      className="block h-auto w-full rounded-full"
+      draggable={false}
+    />
   );
 }
 
