@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { makeRng } from "@/lib/random";
+import { CoinArt } from "@/components/ui/Art";
 
 const CONFETTI_COLORS = ["#FF6FA5", "#FFD25E", "#4FD0B6", "#7BC6FF", "#E8395B", "#FFFAF0"];
 
@@ -58,10 +59,7 @@ export function Celebration({ serveId, headline, coins }: CelebrationProps) {
           {headline}
           {coins !== null && (
             <span className="flex items-center gap-1 rounded-full bg-butter px-2.5 py-1 font-body text-base font-black text-cocoa sm:text-xl">
-              <svg viewBox="0 0 24 24" className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true">
-                <circle cx="12" cy="12" r="10" fill="#FFF3C4" stroke="#4A2C2A" strokeWidth="2" />
-                <path d="M12 8v8M10 10h3a2 2 0 010 4h-3" fill="none" stroke="#4A2C2A" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
+              <CoinArt className="h-4 w-4 sm:h-5 sm:w-5" />
               +{coins}
             </span>
           )}

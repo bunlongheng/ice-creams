@@ -54,6 +54,8 @@ export function OrderTickets({ orders, now, wantedFlavors, wantedVessel, wantedT
         const vesselDone = wantedVessel === order.vesselId;
         const toppingsDone = order.toppingIds.every((id) => wantedToppings.includes(id));
         const ready = flavorDone && vesselDone && toppingsDone;
+        // Something on the counter already belongs to this ticket - she is on it.
+        const preparing = !ready && (flavorDone || vesselDone);
         const stage = orderStage(order, now);
         const left = Math.max(1 - orderAge(order, now) / PATIENCE_MS, 0);
 
@@ -61,11 +63,11 @@ export function OrderTickets({ orders, now, wantedFlavors, wantedVessel, wantedT
           <li
             key={order.id}
             aria-label={`Order: ${describeOrder(order)}, ${secondsLeft(order, now)} seconds left${
-              ready ? " - ready to serve" : ""
+              ready ? " - ready to serve" : preparing ? " - preparing" : ""
             }`}
             data-ready={ready}
             data-stage={stage}
-            className={`animate-pop-in relative flex flex-col gap-1 overflow-hidden rounded-2xl border-2 bg-vanilla/95 px-1.5 pt-1.5 pb-2 shadow-md transition-colors sm:px-2 ${
+            className={`animate-pop-in relative flex flex-col gap-1 rounded-2xl border-2 bg-vanilla/95 px-1.5 pt-1.5 pb-2 shadow-md transition-colors sm:px-2 ${
               ready ? "border-mint bg-mint/25" : STAGE_RING[stage]
             } ${index > 1 ? "hidden sm:flex" : "flex"}`}
             style={{ animationDelay: `${index * 70}ms` }}
@@ -100,6 +102,23 @@ export function OrderTickets({ orders, now, wantedFlavors, wantedVessel, wantedT
               />
             </span>
 
+            {preparing && (
+              <span
+                aria-hidden="true"
+                className="absolute -top-1.5 -right-1.5 flex items-center gap-1 rounded-full bg-butter px-1.5 py-0.5 text-[9px] font-black text-cocoa shadow sm:text-[10px]"
+              >
+                <span className="flex gap-0.5">
+                  {[0, 1, 2].map((dot) => (
+                    <span
+                      key={dot}
+                      className="animate-wobble block h-1 w-1 rounded-full bg-cocoa"
+                      style={{ animationDelay: `${dot * 180}ms` }}
+                    />
+                  ))}
+                </span>
+                Preparing
+              </span>
+            )}
             {ready && (
               <span
                 aria-hidden="true"

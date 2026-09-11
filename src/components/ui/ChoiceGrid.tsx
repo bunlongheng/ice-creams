@@ -41,7 +41,7 @@ export function ChoiceGrid({ choices, selected, onChoose, label, columns = "norm
             className="sticker animate-pop-in flex min-h-[88px] flex-col items-center justify-center gap-1 p-2 sm:min-h-[104px] sm:p-3"
             style={{ animationDelay: `${Math.min(index * 28, 320)}ms` }}
           >
-            <span className="pointer-events-none block w-12 sm:w-14">{choice.art}</span>
+            <span className="pointer-events-none block w-14 drop-shadow-[0_3px_2px_rgba(74,44,42,0.22)] sm:w-16">{choice.art}</span>
             <span className="pointer-events-none text-center text-[11px] leading-tight font-semibold sm:text-xs">
               {choice.label}
             </span>

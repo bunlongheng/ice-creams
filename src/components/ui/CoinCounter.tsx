@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CoinArt } from "@/components/ui/Art";
 
 interface CoinCounterProps {
   coins: number;
@@ -8,17 +9,6 @@ interface CoinCounterProps {
   reward: number | null;
   /** Changes on every serve so the same reward can pop twice. */
   rewardKey: number;
-}
-
-/** A coin, drawn rather than downloaded. */
-function CoinArt() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" fill="#FFD25E" stroke="#4A2C2A" strokeWidth="2" />
-      <circle cx="12" cy="12" r="6.4" fill="none" stroke="#4A2C2A" strokeWidth="1.4" opacity="0.55" />
-      <path d="M12 8v8M10 10h3a2 2 0 010 4h-3" fill="none" stroke="#4A2C2A" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
 }
 
 /**
@@ -53,7 +43,7 @@ export function CoinCounter({ coins, reward, rewardKey }: CoinCounterProps) {
       className="relative flex items-center gap-1.5 rounded-2xl bg-vanilla px-3 py-2 shadow-[0_5px_0_rgba(74,44,42,0.22)] sm:px-4 sm:py-2.5"
       aria-label={`${coins} coins earned`}
     >
-      <CoinArt />
+      <CoinArt className="h-5 w-5 sm:h-6 sm:w-6" />
       <span className="font-body text-lg leading-none font-black text-cocoa tabular-nums sm:text-xl" aria-hidden="true">
         {shown}
       </span>

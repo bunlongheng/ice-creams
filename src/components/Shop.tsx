@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import { FLAVORS, STYLES, TOPPINGS, getFlavor, getStyle, getVessel, vesselsForStyle } from "@/lib/catalog";
 import {
@@ -13,7 +14,16 @@ import {
 } from "@/lib/creation";
 import { bestMatch, emptyOrderBook, ordersReducer } from "@/lib/orders";
 import { sounds, type SoundName } from "@/lib/sound";
-import { CustomerArt, FlavorArt, ScoopsArt, SoftServeArt, ToppingArt, VesselArt } from "@/components/ui/Art";
+import {
+  ChalkboardArt,
+  CoinArt,
+  FlavorArt,
+  PlantArt,
+  ScoopsArt,
+  SoftServeArt,
+  ToppingArt,
+  VesselArt,
+} from "@/components/ui/Art";
 import { Celebration } from "@/components/ui/Celebration";
 import { ChoiceGrid, type Choice } from "@/components/ui/ChoiceGrid";
 import { CoinCounter } from "@/components/ui/CoinCounter";
@@ -245,7 +255,6 @@ export function Shop() {
         reward={served && reward ? reward.coins : null}
         rewardKey={creation.servedCount}
         onToggleMuted={toggleMuted}
-        onStartOver={startOver}
       />
 
       <main
@@ -276,11 +285,24 @@ export function Shop() {
               >
                 {customerLine}
               </p>
-              <span className="shop-customer block w-10 shrink-0 sm:w-16">
-                <CustomerArt happy={served} />
-              </span>
+              <Image
+                src="/mila.png"
+                alt="Mila"
+                width={64}
+                height={64}
+                priority
+                className={`shop-customer w-10 shrink-0 rounded-full shadow-md sm:w-16 ${served ? "animate-wobble" : ""}`}
+              />
             </div>
           </div>
+
+          {/* The corners of the counter: a plant and the chalkboard, like the sign. */}
+          <span aria-hidden="true" className="pointer-events-none absolute bottom-1 left-1 block w-14 sm:bottom-2 sm:left-3 sm:w-24">
+            <PlantArt />
+          </span>
+          <span aria-hidden="true" className="pointer-events-none absolute right-1 bottom-1 block w-14 sm:right-3 sm:bottom-2 sm:w-24">
+            <ChalkboardArt />
+          </span>
 
           {served && (
             <Celebration
@@ -369,10 +391,7 @@ export function Shop() {
                       // Shows what this creation is worth before she taps, which
                       // is how the coins connect to the orders on the counter.
                       <span className="flex items-center gap-1 rounded-full bg-cocoa px-2.5 py-1 font-body text-base font-black text-butter sm:text-lg">
-                        <svg viewBox="0 0 24 24" className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true">
-                          <circle cx="12" cy="12" r="10" fill="#FFD25E" stroke="#4A2C2A" strokeWidth="2" />
-                          <path d="M12 8v8M10 10h3a2 2 0 010 4h-3" fill="none" stroke="#4A2C2A" strokeWidth="1.8" strokeLinecap="round" />
-                        </svg>
+                        <CoinArt className="h-4 w-4 sm:h-5 sm:w-5" />
                         +{pending.coins}
                       </span>
                     )}
@@ -421,14 +440,12 @@ function ShopSign({
   reward,
   rewardKey,
   onToggleMuted,
-  onStartOver,
 }: {
   muted: boolean;
   coins: number;
   reward: number | null;
   rewardKey: number;
   onToggleMuted: () => void;
-  onStartOver: () => void;
 }) {
   return (
     <header className="shop-header relative flex shrink-0 items-center justify-between gap-3 rounded-[1.5rem] px-3 pt-3 pb-4 sm:rounded-[2rem] sm:px-5 sm:pt-4 sm:pb-5">
@@ -451,16 +468,6 @@ function ShopSign({
             ) : (
               <path d="M17 8.5a5 5 0 010 7M19.5 6a8.5 8.5 0 010 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
             )}
-          </svg>
-        </button>
-        <button
-          type="button"
-          onClick={onStartOver}
-          className="sticker shop-icon-button flex h-12 w-12 items-center justify-center rounded-2xl bg-vanilla sm:h-14 sm:w-14"
-          aria-label="Start a new order"
-        >
-          <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
-            <path d="M20 12a8 8 0 11-2.6-5.9M20 4v5h-5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
       </div>
