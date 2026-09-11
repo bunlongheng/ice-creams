@@ -15,10 +15,8 @@ import {
 import { bestMatch, emptyOrderBook, ordersReducer } from "@/lib/orders";
 import { sounds, type SoundName } from "@/lib/sound";
 import {
-  ChalkboardArt,
   CoinArt,
   FlavorArt,
-  PlantArt,
   ScoopsArt,
   SoftServeArt,
   ToppingArt,
@@ -295,14 +293,6 @@ export function Shop() {
               />
             </div>
           </div>
-
-          {/* The corners of the counter: a plant and the chalkboard, like the sign. */}
-          <span aria-hidden="true" className="pointer-events-none absolute bottom-1 left-1 block w-14 sm:bottom-2 sm:left-3 sm:w-24">
-            <PlantArt />
-          </span>
-          <span aria-hidden="true" className="pointer-events-none absolute right-1 bottom-1 block w-14 sm:right-3 sm:bottom-2 sm:w-24">
-            <ChalkboardArt />
-          </span>
 
           {served && (
             <Celebration
