@@ -14,29 +14,51 @@ const svgProps = {
 
 const OUTLINE = "#4A2C2A";
 
+/**
+ * The two styles. Neither draws a cone: the container is its own step now, and
+ * a cone under both icons made them look like the same choice twice.
+ */
 export function SoftServeArt() {
+  // A piped rope of soft serve - wide coils at the bottom, a little tip on top.
+  const coils: [number, number, number, string][] = [
+    [32, 50, 17, "#FFF1DC"],
+    [32, 41, 15, "#FFD9E4"],
+    [32, 32.5, 12.5, "#FFF1DC"],
+    [32, 25, 10, "#FFD9E4"],
+    [32, 18.5, 7.5, "#FFF1DC"],
+  ];
+
   return (
     <svg {...svgProps}>
-      <path d="M22 44h20l-10 17z" fill="#D9A05B" stroke={OUTLINE} strokeWidth="2.5" strokeLinejoin="round" />
-      <path d="M24 44h16M26 50h12" stroke="#A9702F" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M32 6c6 0 9 4 9 7 0 2-1 3-3 4 4 1 6 4 6 7 0 3-2 5-5 6 4 1 6 4 6 7 0 4-4 7-13 7s-13-3-13-7c0-3 2-6 6-7-3-1-5-3-5-6 0-3 2-6 6-7-2-1-3-2-3-4 0-3 3-7 9-7z"
-        fill="#FFF6E8"
-        stroke={OUTLINE}
-        strokeWidth="2.5"
-        strokeLinejoin="round"
-      />
+      <ellipse cx="32" cy="55" rx="19" ry="6" fill="#FFE7D0" stroke={OUTLINE} strokeWidth="2.5" />
+      {coils.map(([cx, cy, r, fill], index) => (
+        <g key={index}>
+          <ellipse cx={cx} cy={cy} rx={r} ry={r * 0.56} fill={fill} stroke={OUTLINE} strokeWidth="2.5" />
+          <path
+            d={`M${cx - r * 0.55} ${cy - r * 0.1}q${r * 0.55} ${r * 0.34} ${r * 1.1} 0`}
+            fill="none"
+            stroke={OUTLINE}
+            strokeWidth="1.4"
+            opacity="0.35"
+          />
+        </g>
+      ))}
+      <path d="M32 6c4 3 5 6 5 8.5 0 3-2.4 4.5-5 4.5s-5-1.5-5-4.5C27 12 28 9 32 6z" fill="#FFF1DC" stroke={OUTLINE} strokeWidth="2.5" strokeLinejoin="round" />
     </svg>
   );
 }
 
 export function ScoopsArt() {
+  // Three round scoops, stacked - no container, just the shape of the choice.
   return (
     <svg {...svgProps}>
-      <path d="M22 46h20l-10 15z" fill="#D9A05B" stroke={OUTLINE} strokeWidth="2.5" strokeLinejoin="round" />
-      <circle cx="32" cy="40" r="12" fill="#F6A8BC" stroke={OUTLINE} strokeWidth="2.5" />
-      <circle cx="25" cy="26" r="10" fill="#A8E6C7" stroke={OUTLINE} strokeWidth="2.5" />
-      <circle cx="40" cy="24" r="10" fill="#FBE7C0" stroke={OUTLINE} strokeWidth="2.5" />
+      <ellipse cx="32" cy="55" rx="19" ry="6" fill="#FFE7D0" stroke={OUTLINE} strokeWidth="2.5" />
+      <circle cx="21" cy="42" r="12.5" fill="#F8AEBE" stroke={OUTLINE} strokeWidth="2.5" />
+      <circle cx="43" cy="42" r="12.5" fill="#FBE7C0" stroke={OUTLINE} strokeWidth="2.5" />
+      <circle cx="32" cy="22" r="14" fill="#AEE7CB" stroke={OUTLINE} strokeWidth="2.5" />
+      <circle cx="26.5" cy="16.5" r="3.6" fill="#FFFFFF" opacity="0.65" />
+      <circle cx="16.5" cy="38" r="2.6" fill="#FFFFFF" opacity="0.5" />
+      <circle cx="38.5" cy="38" r="2.6" fill="#FFFFFF" opacity="0.5" />
     </svg>
   );
 }

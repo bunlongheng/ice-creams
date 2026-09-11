@@ -13,7 +13,11 @@ import {
   type VesselId,
 } from "./catalog";
 
-export const STEPS = ["style", "flavor", "vessel", "topping", "serve"] as const;
+/**
+ * Container before flavours: how many scoops fit is a property of the
+ * container, so choosing it first means nothing she picks gets taken away.
+ */
+export const STEPS = ["style", "vessel", "flavor", "topping", "serve"] as const;
 export type Step = (typeof STEPS)[number];
 
 /** A soft swirl braids one ribbon per flavour. */
@@ -72,8 +76,8 @@ export function isServable(state: Creation): boolean {
 /** The steps the child has picked enough to jump back to. */
 export function reachableSteps(state: Creation): Step[] {
   const steps: Step[] = ["style"];
-  if (state.style) steps.push("flavor");
-  if (state.flavors.length > 0) steps.push("vessel");
+  if (state.style) steps.push("vessel");
+  if (state.vessel) steps.push("flavor");
   // Toppings need something to sit on, so a deselected flavour closes the step
   // again rather than leaving a step that cannot be served.
   if (state.vessel && state.flavors.length > 0) steps.push("topping");
@@ -97,7 +101,7 @@ export function creationReducer(state: Creation, action: CreationAction): Creati
   switch (action.type) {
     case "setStyle": {
       if (!isStyleId(action.id)) return state;
-      if (state.style === action.id) return { ...state, step: "flavor" };
+      if (state.style === action.id) return { ...state, step: "vessel" };
       // Switching style changes what the flavours mean, so start the stack fresh
       // - and drop a vessel that the new style cannot be served in.
       const vessel = state.vessel ? getVessel(state.vessel) : undefined;
@@ -107,7 +111,7 @@ export function creationReducer(state: Creation, action: CreationAction): Creati
         style: action.id,
         flavors: [],
         vessel: keepsVessel ? state.vessel : null,
-        step: "flavor",
+        step: "vessel",
       };
     }
 
@@ -120,7 +124,7 @@ export function creationReducer(state: Creation, action: CreationAction): Creati
       if (!isVesselId(action.id)) return state;
       const chosen = getVessel(action.id);
       if (chosen && !vesselTakesStyle(chosen, state.style)) return state;
-      const next = { ...state, vessel: action.id, step: "topping" as Step };
+      const next = { ...state, vessel: action.id, step: "flavor" as Step };
       // A cake cone holds fewer scoops than a cup - trim from the bottom. Keep
       // the same array when nothing is trimmed, so the 3D scene can skip a
       // rebuild when the child re-taps the vessel she already chose.

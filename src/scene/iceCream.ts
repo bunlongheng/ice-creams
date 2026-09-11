@@ -122,6 +122,10 @@ function buildScoops(
   // A scoop dropped into a well is sized by the well, not by the rim.
   const radius = slots && slotRadius ? slotRadius : Math.min(Math.max(mountRadius * 0.92, 0.4), 0.52);
   const rng = makeRng(seed);
+  // A scoop drops into the container until its widest point is near the rim.
+  // A wide opening swallows more of it; a narrow one holds it higher.
+  const fit = Math.min(mountRadius / radius, 1);
+  const seatY = radius * (0.8 - 0.5 * fit);
 
   let topY = 0;
   let topSeed = seed;
@@ -131,7 +135,7 @@ function buildScoops(
     const mesh = new THREE.Mesh(geometry, iceCreamMaterial(flavor));
     const slot = slots?.[index % Math.max(slots.length, 1)];
     const jitter = index === 0 ? 0 : (rng() - 0.5) * radius * 0.22;
-    const y = slot ? radius * 0.62 : radius * 0.8 + index * radius * 1.34;
+    const y = slot ? radius * 0.62 : seatY + index * radius * 1.34;
     if (slot) mesh.position.set(slot.x, y, slot.z);
     else mesh.position.set(jitter, y, (rng() - 0.5) * radius * 0.22);
     mesh.rotation.y = rng() * Math.PI * 2;

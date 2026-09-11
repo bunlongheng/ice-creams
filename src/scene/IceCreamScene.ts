@@ -140,8 +140,22 @@ export class IceCreamScene {
     disposeObject(this.dessert);
     this.dessert.clear();
 
-    const vesselId = creation.vessel ?? "cup";
-    const vessel = buildVessel(vesselId);
+    // Nothing is chosen yet: leave the counter empty rather than parking a
+    // placeholder container there, which reads as a choice already made.
+    if (!creation.vessel) {
+      this.crownY = 1.2;
+      this.halfWidth = 0.8;
+      this.popTime = Infinity;
+      this.dessert.scale.setScalar(1);
+      // Nothing is casting it, so the contact shadow would just be a smudge.
+      this.contactShadow.visible = false;
+      this.dirty = true;
+      this.frameCamera();
+      return;
+    }
+
+    this.contactShadow.visible = true;
+    const vessel = buildVessel(creation.vessel);
     this.dessert.add(vessel.group);
 
     if (creation.style && creation.flavors.length > 0) {

@@ -39,8 +39,11 @@ describe("creationReducer", () => {
     expect(state.flavors).toEqual([]);
   });
 
-  it("advances to the flavour step once a style is picked", () => {
-    expect(build({ type: "setStyle", id: "soft" }).step).toBe("flavor");
+  it("asks what it goes in before it asks for flavours", () => {
+    // The container decides how many scoops fit, so it has to come first.
+    const styled = build({ type: "setStyle", id: "soft" });
+    expect(styled.step).toBe("vessel");
+    expect(creationReducer(styled, { type: "setVessel", id: "cup" }).step).toBe("flavor");
   });
 
   it("clears the stack when the style changes", () => {
@@ -141,19 +144,36 @@ describe("creationReducer", () => {
 
   it("only offers steps the child has already answered", () => {
     expect(reachableSteps(emptyCreation())).toEqual(["style"]);
-    expect(reachableSteps(build({ type: "setStyle", id: "soft" }))).toEqual(["style", "flavor"]);
+    expect(reachableSteps(build({ type: "setStyle", id: "soft" }))).toEqual(["style", "vessel"]);
 
     const ready = build(
       { type: "setStyle", id: "soft" },
-      { type: "toggleFlavor", id: "vanilla" },
       { type: "setVessel", id: "cup" },
+      { type: "toggleFlavor", id: "vanilla" },
     );
-    expect(reachableSteps(ready)).toEqual(["style", "flavor", "vessel", "topping"]);
+    expect(reachableSteps(ready)).toEqual(["style", "vessel", "flavor", "topping"]);
 
     // Taking the flavour back off closes the topping step again - otherwise the
     // child could reach a step whose Serve button can never light up.
     const emptied = creationReducer(ready, { type: "toggleFlavor", id: "vanilla" });
-    expect(reachableSteps(emptied)).toEqual(["style", "flavor"]);
+    expect(reachableSteps(emptied)).toEqual(["style", "vessel", "flavor"]);
+  });
+
+  it("knows the scoop limit before a single flavour is picked", () => {
+    // The whole point of putting the container first: no flavour ever gets
+    // trimmed away after she chose it.
+    const cakeCone = build({ type: "setStyle", id: "scoop" }, { type: "setVessel", id: "cake-cone" });
+    expect(flavorCapacity(cakeCone)).toBe(3);
+
+    const picked = (
+      [
+        { type: "toggleFlavor", id: "vanilla" },
+        { type: "toggleFlavor", id: "chocolate" },
+        { type: "toggleFlavor", id: "mango" },
+        { type: "toggleFlavor", id: "lemon" },
+      ] as CreationAction[]
+    ).reduce(creationReducer, cakeCone);
+    expect(picked.flavors).toEqual(["chocolate", "mango", "lemon"]);
   });
 
   it("treats resetting an untouched order as a no-op", () => {

@@ -1,25 +1,50 @@
 "use client";
 
-import { getFlavor, getVessel } from "@/lib/catalog";
-import { describeOrder, type Order } from "@/lib/orders";
-import { FlavorArt, VesselArt } from "@/components/ui/Art";
+import { getFlavor, getTopping, getVessel } from "@/lib/catalog";
+import {
+  PATIENCE_MS,
+  describeOrder,
+  orderAge,
+  orderStage,
+  secondsLeft,
+  type Order,
+} from "@/lib/orders";
+import { FlavorArt, ToppingArt, VesselArt } from "@/components/ui/Art";
 
 interface OrderTicketsProps {
   orders: readonly Order[];
-  /** Highlights the tickets this creation would currently fill. */
+  /** The counter's clock, ticking once a second. */
+  now: number;
+  /** Highlights the parts of a ticket this creation already covers. */
   wantedFlavors: readonly string[];
   wantedVessel: string | null;
+  wantedToppings: readonly string[];
+}
+
+/** Calm, then hurry-up. The ring around a ticket is the only clock she needs. */
+const STAGE_RING = {
+  fresh: "border-mint",
+  hurry: "border-[#F0932B]",
+  gone: "border-cocoa/15",
+} as const;
+
+/** One picture in the order, dimmed until it is on the ice cream. */
+function Wanted({ done, children }: { done: boolean; children: React.ReactNode }) {
+  return (
+    <span className={`block w-7 shrink-0 transition-opacity sm:w-9 ${done ? "opacity-100" : "opacity-55"}`}>
+      {children}
+    </span>
+  );
 }
 
 /**
- * The customers waiting at the counter. Only the first two show on a phone -
- * three tickets and a speech bubble will not share 390 pixels. Each ticket is two pictures - a flavour
- * and a container - because that is the whole order. No timers, no pressure:
- * a ticket sits there until she feels like making it.
+ * The customers waiting at the counter, stacked down the left like a rail of
+ * paper tickets. Most ask for a flavour and a container; some add a topping,
+ * and the occasional show-off wants two.
  */
-export function OrderTickets({ orders, wantedFlavors, wantedVessel }: OrderTicketsProps) {
+export function OrderTickets({ orders, now, wantedFlavors, wantedVessel, wantedToppings }: OrderTicketsProps) {
   return (
-    <ul className="flex shrink-0 items-start gap-1.5 sm:gap-2.5" aria-label="Orders waiting">
+    <ul className="flex w-fit flex-col gap-1.5 sm:gap-2" aria-label="Orders waiting">
       {orders.map((order, index) => {
         const flavor = getFlavor(order.flavorId);
         const vessel = getVessel(order.vesselId);
@@ -27,31 +52,58 @@ export function OrderTickets({ orders, wantedFlavors, wantedVessel }: OrderTicke
 
         const flavorDone = wantedFlavors.includes(order.flavorId);
         const vesselDone = wantedVessel === order.vesselId;
-        const ready = flavorDone && vesselDone;
+        const toppingsDone = order.toppingIds.every((id) => wantedToppings.includes(id));
+        const ready = flavorDone && vesselDone && toppingsDone;
+        const stage = orderStage(order, now);
+        const left = Math.max(1 - orderAge(order, now) / PATIENCE_MS, 0);
 
         return (
           <li
             key={order.id}
-            aria-label={`Order: ${describeOrder(order)}${ready ? " - ready to serve" : ""}`}
+            aria-label={`Order: ${describeOrder(order)}, ${secondsLeft(order, now)} seconds left${
+              ready ? " - ready to serve" : ""
+            }`}
             data-ready={ready}
-            className={`animate-pop-in relative flex items-center gap-0.5 rounded-2xl border-2 bg-vanilla/95 px-1 py-1 shadow-md transition-colors sm:gap-1.5 sm:px-2 sm:py-1.5 ${
-              ready ? "border-mint bg-mint/25" : "border-cocoa/15"
+            data-stage={stage}
+            className={`animate-pop-in relative flex flex-col gap-1 overflow-hidden rounded-2xl border-2 bg-vanilla/95 px-1.5 pt-1.5 pb-2 shadow-md transition-colors sm:px-2 ${
+              ready ? "border-mint bg-mint/25" : STAGE_RING[stage]
             } ${index > 1 ? "hidden sm:flex" : "flex"}`}
             style={{ animationDelay: `${index * 70}ms` }}
           >
-            <span className={`block w-7 sm:w-10 ${flavorDone ? "" : "opacity-90"}`}>
-              <FlavorArt flavor={flavor} />
+            {/* Container first, then flavour, then toppings - the same order
+                she works through the steps in. */}
+            <span className="flex items-center gap-1">
+              <Wanted done={vesselDone}>
+                <VesselArt id={vessel.id} />
+              </Wanted>
+              <Wanted done={flavorDone}>
+                <FlavorArt flavor={flavor} />
+              </Wanted>
+              {order.toppingIds.map((id) => {
+                const topping = getTopping(id);
+                if (!topping) return null;
+                return (
+                  <Wanted key={id} done={wantedToppings.includes(id)}>
+                    <ToppingArt topping={topping} />
+                  </Wanted>
+                );
+              })}
             </span>
-            <span className="text-[10px] font-black text-cocoa/40 sm:text-xs" aria-hidden="true">
-              +
+
+            {/* How much patience is left, as a bar rather than a number. */}
+            <span aria-hidden="true" className="h-1.5 w-full overflow-hidden rounded-full bg-cocoa/10">
+              <span
+                className={`block h-full rounded-full transition-[width] duration-1000 ease-linear ${
+                  stage === "hurry" ? "bg-[#F0932B]" : "bg-mint"
+                }`}
+                style={{ width: `${left * 100}%` }}
+              />
             </span>
-            <span className={`block w-7 sm:w-10 ${vesselDone ? "" : "opacity-90"}`}>
-              <VesselArt id={vessel.id} />
-            </span>
+
             {ready && (
               <span
                 aria-hidden="true"
-                className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-mint text-cocoa shadow"
+                className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-mint text-cocoa shadow"
               >
                 <svg viewBox="0 0 24 24" className="h-4 w-4">
                   <path

@@ -31,7 +31,7 @@ she sees. There is no reading required - every button is a picture.
 | **30 flavours** | Vanilla, chocolate, strawberry, mint chip, cookies and cream, cookie dough, caramel, bubblegum, birthday cake, rocky road, pistachio, mango, blueberry, peanut butter, neapolitan, purple cow, raisin, coconut, banana, pina colada, orange, pineapple, peach, coffee, watermelon, lime, lemon, raspberry, cotton candy, cherry |
 | **9 containers** | Cup, waffle cone, cake cone, sundae glass, float, waffle bowl, paper boat, pink egg carton (6 wells, scoops only), frosty cup |
 | **14 toppings** | Sprinkles, Oreo crumbles, cookie pieces, gummy bears, fruit, chocolate chips, peanuts, hot fudge, caramel, whipped cream, marshmallows, cherry |
-| **Orders and coins** | Three customers wait at the counter with a picture order - one flavour, one container. Filling one pays 5 coins, and anything else still pays 1 |
+| **Orders and coins** | Customers arrive one a minute with a picture ticket - container, flavour, sometimes a topping. Fill one fast and the tip is bigger |
 | **The ta-da** | Confetti, a sparkle burst, a glow, a fanfare and a coin ka-ching when the order is served |
 
 <div align="center">
@@ -41,18 +41,42 @@ she sees. There is no reading required - every button is a picture.
 
 ## Taking orders
 
-Customers queue up with a two-picture ticket: the flavour they want and what to serve it in. When the
-creation on the counter matches a ticket, that ticket lights up green and the Serve button shows what it
-is worth. Serving pays into the till, the customer leaves, and the next one walks in.
+One customer is waiting when the shop opens, on a rail down the left of the counter, and a new one walks
+in only once a minute. A busy counter is stressful, so the rail holds three at the very most and in
+practice settles at two.
 
-**There is no timer anywhere in the game.** A ticket waits as long as it takes. And a serve that matches
-no ticket at all still pays a coin, so making something just because you felt like it is never punished.
+A ticket is just pictures, in the same order she works through the steps: the container, the flavour,
+and sometimes a topping. Most tickets ask for two things, some for three, and the occasional show-off
+wants four. Any container can be ordered, including the float and the six-well egg carton.
+
+Each picture brightens as that part lands on the ice cream. When the whole ticket is covered it turns
+green with a check, and the Serve button shows what it is worth. Serving pays into the till and the
+customer leaves - the counter gets calmer, not instantly busy again. After the confetti the shop clears
+itself and lands back on the first question, so there is no button to find before playing again.
+
+Each customer waits two minutes, shown as a bar under their ticket and as the colour of its ring:
+
+| Waiting | Ring | What happens |
+|---|---|---|
+| Under a minute | Mint | Plenty of time |
+| One to two minutes | Orange | Hurry up |
+| Past two minutes | - | The customer gives up and leaves |
 
 | Serve | Pays |
 |---|---|
-| Right flavour and right container | 5 coins |
-| One of the two | 3 coins |
-| Neither - she just made what she wanted | 1 coin |
+| Right container | 2 coins |
+| Right flavour | 2 coins |
+| Each topping the ticket asked for | 1 coin each |
+| Serving at all | 1 coin |
+| The whole ticket, filled fast | + up to 3 coins of tip |
+
+**The tip is for speed:** 3 coins under 20 seconds, 2 under 40, 1 under a minute, none after that. So a
+perfect order served quickly is 8 coins and the same order served slowly is 5.
+
+Two rules keep it kind. **A customer leaving costs nothing** - there is no penalty, only a missed tip.
+And **a serve that matches no ticket still pays a coin**, so making something just because you felt like
+it is never punished. The clock also pauses whenever the tab is hidden, so putting the iPad down does not
+empty the shop.
 
 ## Built for little hands
 

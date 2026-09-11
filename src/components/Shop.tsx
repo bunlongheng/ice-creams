@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useReducer, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import { FLAVORS, STYLES, TOPPINGS, getFlavor, getStyle, getVessel, vesselsForStyle } from "@/lib/catalog";
 import {
   creationReducer,
@@ -49,6 +49,8 @@ const STEP_TITLES: Record<Step, string> = {
 const STEP_GUARD_MS = 300;
 /** The ta-da is the reward - hold it long enough to be seen. */
 const SERVE_GUARD_MS = 1200;
+/** How long the celebration plays before the counter clears itself. */
+const CELEBRATION_MS = 2600;
 
 const CHEERS = ["Yay! Thank you!", "Yummy! You are the best!", "Wow, that is beautiful!", "My favourite ever!"];
 /** Said when the serve filled the order the customer actually asked for. */
@@ -56,7 +58,15 @@ const PERFECT_CHEERS = ["That is exactly it!", "My order! Thank you!", "Just wha
 
 export function Shop() {
   const [creation, dispatch] = useReducer(creationReducer, undefined, emptyCreation);
-  const [orders, dispatchOrders] = useReducer(ordersReducer, undefined, emptyOrderBook);
+  const [orders, dispatchOrders] = useReducer(ordersReducer, undefined, () => emptyOrderBook());
+  /**
+   * The counter's clock. It starts at 0 so the server and the browser render
+   * the same first frame - every order clamps to "just arrived" at that value -
+   * and the first tick after mount switches it to the real time. It only runs
+   * while the tab is visible, so putting the iPad down does not empty the shop
+   * while she is not looking.
+   */
+  const [now, setNow] = useState(0);
   const muted = useSyncExternalStore(sounds.subscribe, sounds.isMuted, sounds.isMutedOnServer);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const lastStep = useRef(creation.step);
@@ -68,12 +78,43 @@ export function Shop() {
    */
   const guardUntil = useRef(0);
   const coinTimer = useRef(0);
+  const resetTimer = useRef(0);
   const guard = (ms: number) => {
     guardUntil.current = Date.now() + ms;
   };
   const settled = () => Date.now() >= guardUntil.current;
 
-  useEffect(() => () => window.clearTimeout(coinTimer.current), []);
+  useEffect(
+    () => () => {
+      window.clearTimeout(coinTimer.current);
+      window.clearTimeout(resetTimer.current);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    let timer = 0;
+    const tick = () => {
+      if (document.hidden) return;
+      const stamp = Date.now();
+      setNow(stamp);
+      dispatchOrders({ type: "tick", now: stamp });
+    };
+    const start = () => {
+      window.clearInterval(timer);
+      // Patience is measured in minutes, so once a second is plenty.
+      timer = window.setInterval(tick, 1000);
+      tick();
+    };
+    const onVisibility = () => (document.hidden ? window.clearInterval(timer) : start());
+
+    start();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   // Each step swaps the whole grid, so send focus (and the screen reader) to the
   // new question instead of dropping focus on the unmounted button. Not on first
@@ -131,9 +172,12 @@ export function Shop() {
     // Only ring the till if the guard actually let the serve through, or a
     // double tap would pay for the same ice cream twice.
     if (!act({ type: "serve" }, "serve", SERVE_GUARD_MS)) return;
-    dispatchOrders({ type: "serve", creation });
+    dispatchOrders({ type: "serve", creation, now: Date.now() });
     // The coins land a beat after the fanfare, so both are audible.
     coinTimer.current = window.setTimeout(() => sounds.play("coin"), 420);
+    // Then the counter clears itself and the next order starts - a two-year-old
+    // should not have to find a button to keep playing.
+    resetTimer.current = window.setTimeout(() => dispatch({ type: "startOver" }), CELEBRATION_MS);
   }, [act, creation]);
   const startOver = useCallback(() => act({ type: "startOver" }, "reset"), [act]);
 
@@ -170,13 +214,14 @@ export function Shop() {
 
   const served = creation.step === "serve";
   /** What the creation on the counter would earn right now. */
-  const pending = useMemo(() => bestMatch(orders.queue, creation), [orders.queue, creation]);
+  const pending = useMemo(() => bestMatch(orders.queue, creation, now), [orders.queue, creation, now]);
   const reward = orders.lastReward;
   const canServe = isServable(creation);
   const reachable = reachableSteps(creation);
 
   const customerLine = useMemo(() => {
     if (served) {
+      if (reward && reward.tip > 0) return "So fast! Keep the change!";
       if (reward?.orderId !== null && reward?.flavorMatched && reward?.vesselMatched) {
         return PERFECT_CHEERS[creation.servedCount % PERFECT_CHEERS.length] ?? PERFECT_CHEERS[0];
       }
@@ -214,25 +259,27 @@ export function Shop() {
         >
           <IceCreamCanvas creation={creation} />
 
-          {/* The counter: who is waiting on the left, what they want on the right. */}
+          {/* The order rail runs down the left; the customer waits on the right. */}
           <div className="pointer-events-none absolute inset-x-2 top-2 flex items-start justify-between gap-2 sm:inset-x-4 sm:top-4 sm:gap-3">
+            <OrderTickets
+              orders={orders.queue}
+              now={now}
+              wantedFlavors={creation.flavors}
+              wantedVessel={creation.vessel}
+              wantedToppings={creation.toppings}
+            />
+
             <div className="flex min-w-0 items-end gap-1.5 sm:gap-2">
-              <span className="shop-customer block w-10 shrink-0 sm:w-16">
-                <CustomerArt happy={served} />
-              </span>
               <p
                 key={customerLine}
-                className="shop-bubble animate-pop-in max-w-[6.5rem] rounded-2xl rounded-bl-sm bg-vanilla px-2 py-1.5 text-[11px] leading-tight font-bold shadow-md sm:max-w-[13rem] sm:px-3 sm:py-2 sm:text-sm"
+                className="shop-bubble animate-pop-in line-clamp-2 max-w-[6.5rem] min-w-0 rounded-2xl rounded-br-sm bg-vanilla px-2 py-1.5 text-right text-[11px] leading-tight font-bold shadow-md sm:max-w-[13rem] sm:px-3 sm:py-2 sm:text-sm"
               >
                 {customerLine}
               </p>
+              <span className="shop-customer block w-10 shrink-0 sm:w-16">
+                <CustomerArt happy={served} />
+              </span>
             </div>
-
-            <OrderTickets
-              orders={orders.queue}
-              wantedFlavors={creation.flavors}
-              wantedVessel={creation.vessel}
-            />
           </div>
 
           {served && (
@@ -240,7 +287,6 @@ export function Shop() {
               serveId={creation.servedCount}
               headline={STEP_TITLES.serve}
               coins={reward?.coins ?? null}
-              onAgain={startOver}
             />
           )}
         </section>
@@ -305,7 +351,9 @@ export function Shop() {
               <NextButton onClick={() => pick({ type: "next" })} />
             )}
 
-            {(creation.step === "topping" || creation.step === "serve" || creation.step === "vessel") && (
+            {/* Serve only appears once there is something to serve - the
+                container step now comes before any flavour is picked. */}
+            {(creation.step === "topping" || creation.step === "serve") && (
               <button
                 type="button"
                 onClick={served ? startOver : serve}

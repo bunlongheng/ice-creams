@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { makeRng } from "@/lib/random";
 
 const CONFETTI_COLORS = ["#FF6FA5", "#FFD25E", "#4FD0B6", "#7BC6FF", "#E8395B", "#FFFAF0"];
@@ -11,12 +11,13 @@ interface CelebrationProps {
   headline: string;
   /** Coins this serve earned, shown next to the cheer. */
   coins: number | null;
-  onAgain: () => void;
 }
 
-/** The ta-da overlay: confetti rain, a big cheer, and one button back to play. */
-export function Celebration({ serveId, headline, coins, onAgain }: CelebrationProps) {
-  const againRef = useRef<HTMLButtonElement>(null);
+/**
+ * The ta-da overlay: confetti rain and a big cheer. It clears itself after a
+ * couple of seconds, so there is no button to find before playing again.
+ */
+export function Celebration({ serveId, headline, coins }: CelebrationProps) {
 
   // A fresh scatter per serve keeps the moment feeling new.
   const confetti = useMemo(() => {
@@ -29,10 +30,6 @@ export function Celebration({ serveId, headline, coins, onAgain }: CelebrationPr
       color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
       size: 8 + rng() * 10,
     }));
-  }, [serveId]);
-
-  useEffect(() => {
-    againRef.current?.focus();
   }, [serveId]);
 
   return (
@@ -69,14 +66,6 @@ export function Celebration({ serveId, headline, coins, onAgain }: CelebrationPr
             </span>
           )}
         </p>
-        <button
-          ref={againRef}
-          type="button"
-          onClick={onAgain}
-          className="sticker pointer-events-auto animate-float-up bg-mint px-5 py-3 font-display text-lg text-cocoa sm:px-7 sm:py-4 sm:text-2xl"
-        >
-          Make another!
-        </button>
       </div>
     </div>
   );

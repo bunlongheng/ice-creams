@@ -7,8 +7,8 @@ type ChipStep = Exclude<Step, "serve">;
 
 const STEP_META: Record<ChipStep, { label: string; badge: string }> = {
   style: { label: "Style", badge: "1" },
-  flavor: { label: "Flavour", badge: "2" },
-  vessel: { label: "Serve in", badge: "3" },
+  vessel: { label: "Serve in", badge: "2" },
+  flavor: { label: "Flavour", badge: "3" },
   topping: { label: "Toppings", badge: "4" },
 };
 

@@ -99,16 +99,17 @@ function list(names: readonly string[]): string {
 
 /** Spoken description of the dessert, kept in sync with what is rendered. */
 function describeCreation(creation: Dessert): string {
+  const vesselName = creation.vessel ? getVessel(creation.vessel)?.name.toLowerCase() : undefined;
+
   if (!creation.style || creation.flavors.length === 0) {
-    return "An empty ice cream cup, waiting for an order.";
+    // The container is chosen before any flavour, so say which one is waiting.
+    return vesselName ? `An empty ${vesselName}, waiting for ice cream.` : "An empty counter, waiting for an order.";
   }
 
   const flavors = creation.flavors.map((id) => getFlavor(id)?.name).filter((name): name is string => Boolean(name));
   const toppings = creation.toppings.map((id) => getTopping(id)?.name).filter((name): name is string => Boolean(name));
-  const vessel = creation.vessel ? getVessel(creation.vessel)?.name.toLowerCase() : undefined;
-
   const parts = [creation.style === "soft" ? "A soft swirl of" : "Scoops of", list(flavors).toLowerCase()];
-  if (vessel) parts.push(`in a ${vessel}`);
+  if (vesselName) parts.push(`in a ${vesselName}`);
   if (toppings.length > 0) parts.push(`with ${list(toppings).toLowerCase()}`);
   return `${parts.join(" ")}.`;
 }
