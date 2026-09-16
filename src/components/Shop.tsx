@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from "react";
-import { FLAVORS, STYLES, TOPPINGS, getFlavor, getStyle, getVessel, vesselsForStyle } from "@/lib/catalog";
+import { FLAVORS, STYLES, TOPPINGS, getFlavor, getStyle, getTopping, getVessel, vesselsForStyle } from "@/lib/catalog";
 import {
   creationReducer,
   emptyCreation,
@@ -12,7 +12,8 @@ import {
   type CreationAction,
   type Step,
 } from "@/lib/creation";
-import { bestMatch, emptyOrderBook, ordersReducer } from "@/lib/orders";
+import { bestMatch, describeOrder, emptyOrderBook, ordersReducer } from "@/lib/orders";
+import { players, type Player } from "@/lib/players";
 import { sounds, type SoundName } from "@/lib/sound";
 import {
   CoinArt,
@@ -60,6 +61,22 @@ const SERVE_GUARD_MS = 1200;
 /** How long the celebration plays before the counter clears itself. */
 const CELEBRATION_MS = 2600;
 
+/** What to call each choice out loud when she taps its picture. */
+function nameOfChoice(step: Step, id: string): string {
+  switch (step) {
+    case "style":
+      return getStyle(id)?.name ?? "";
+    case "flavor":
+      return getFlavor(id)?.name ?? "";
+    case "vessel":
+      return getVessel(id)?.name ?? "";
+    case "topping":
+      return getTopping(id)?.name ?? "";
+    default:
+      return "";
+  }
+}
+
 const CHEERS = ["Yay! Thank you!", "Yummy! You are the best!", "Wow, that is beautiful!", "My favourite ever!"];
 /** Said when the serve filled the order the customer actually asked for. */
 const PERFECT_CHEERS = ["That is exactly it!", "My order! Thank you!", "Just what I wanted!"];
@@ -75,6 +92,8 @@ export function Shop() {
    * while she is not looking.
    */
   const [now, setNow] = useState(0);
+  /** Whose shop it is - the default on the server, then whoever played last. */
+  const player = useSyncExternalStore(players.subscribe, players.get, players.getOnServer);
   const muted = useSyncExternalStore(sounds.subscribe, sounds.isMuted, sounds.isMutedOnServer);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const lastStep = useRef(creation.step);
@@ -124,6 +143,34 @@ export function Shop() {
     };
   }, []);
 
+  /**
+   * Repaint the whole page for whoever is serving. This lives on the document
+   * rather than the shell because the floor glow is painted on the body, above
+   * anything this component renders.
+   */
+  useEffect(() => {
+    document.documentElement.dataset.player = player.id;
+  }, [player.id]);
+
+  /**
+   * Say each new order out loud. A ticket is pictures, and two pale scoops read
+   * the same at that size, so hearing "banana" is the only way to know it was
+   * not lemon. The customer already at the counter on the first paint is not
+   * announced - browsers block speech before a gesture anyway.
+   */
+  const announced = useRef<Set<number> | null>(null);
+  useEffect(() => {
+    if (announced.current === null) {
+      announced.current = new Set(orders.queue.map((order) => order.id));
+      return;
+    }
+    for (const order of orders.queue) {
+      if (announced.current.has(order.id)) continue;
+      announced.current.add(order.id);
+      sounds.speak(`Can I have ${describeOrder(order)}, please?`);
+    }
+  }, [orders.queue]);
+
   // Each step swaps the whole grid, so send focus (and the screen reader) to the
   // new question instead of dropping focus on the unmounted button. Not on first
   // paint, and not on serve - the celebration takes focus there.
@@ -152,23 +199,36 @@ export function Shop() {
     sounds.play("pick");
   }, []);
 
+  /** Tapping the face at the window hands the shop to the next child. */
+  const switchPlayer = useCallback(() => {
+    const next = players.next();
+    sounds.play("pick");
+    sounds.speak(`${next.name}'s Ice Cream Shop!`);
+  }, []);
+
   const choose = useCallback(
     (step: Step, id: string) => {
-      switch (step) {
-        case "style":
-          return act({ type: "setStyle", id }, "scoop");
-        case "flavor":
-          // Toggling a flavour leaves the grid in place, so no guard is needed.
-          return act({ type: "toggleFlavor", id }, "scoop", 0);
-        case "vessel":
-          return act({ type: "setVessel", id }, "pick");
-        case "topping": {
-          const kind = TOPPINGS.find((topping) => topping.id === id)?.kind;
-          return act({ type: "toggleTopping", id }, kind === "sauce" ? "pour" : "sprinkle", 0);
+      const landed = (() => {
+        switch (step) {
+          case "style":
+            return act({ type: "setStyle", id }, "scoop");
+          case "flavor":
+            // Toggling a flavour leaves the grid in place, so no guard is needed.
+            return act({ type: "toggleFlavor", id }, "scoop", 0);
+          case "vessel":
+            return act({ type: "setVessel", id }, "pick");
+          case "topping": {
+            const kind = TOPPINGS.find((topping) => topping.id === id)?.kind;
+            return act({ type: "toggleTopping", id }, kind === "sauce" ? "pour" : "sprinkle", 0);
+          }
+          default:
+            return false;
         }
-        default:
-          return;
-      }
+      })();
+
+      // Every button is a picture, so the app reads the picture out loud - it is
+      // how she learns that this one is the waffle cone and that one is lemon.
+      if (landed) sounds.speak(nameOfChoice(step, id));
     },
     [act],
   );
@@ -249,6 +309,7 @@ export function Shop() {
     <div className="shop-shell mx-auto flex h-dvh w-full max-w-[1400px] flex-col gap-3 overflow-hidden p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:gap-4 sm:p-5">
       <ShopSign
         muted={muted}
+        playerName={player.name}
         coins={orders.coins}
         reward={served && reward ? reward.coins : null}
         rewardKey={creation.servedCount}
@@ -262,7 +323,7 @@ export function Shop() {
       >
         <section
           aria-label="Your ice cream"
-          className="relative min-h-0 overflow-hidden rounded-[2rem] border-4 border-cocoa/10 bg-gradient-to-b from-vanilla to-[#FFE9D2] shadow-[inset_0_-30px_60px_-30px_rgba(74,44,42,0.35)] sm:rounded-[2.5rem]"
+          className="relative min-h-0 overflow-hidden rounded-[2rem] border-4 border-cocoa/10 bg-gradient-to-b from-vanilla to-[var(--shop-stage)] shadow-[inset_0_-30px_60px_-30px_rgba(74,44,42,0.35)] sm:rounded-[2.5rem]"
         >
           <IceCreamCanvas creation={creation} />
 
@@ -283,14 +344,7 @@ export function Shop() {
               >
                 {customerLine}
               </p>
-              <Image
-                src="/mila.png"
-                alt="Mila"
-                width={64}
-                height={64}
-                priority
-                className={`shop-customer w-10 shrink-0 rounded-full shadow-md sm:w-16 ${served ? "animate-wobble" : ""}`}
-              />
+              <PlayerFace key={player.id} player={player} cheering={served} onSwitch={switchPlayer} />
             </div>
           </div>
 
@@ -411,6 +465,43 @@ function Chevron({ direction, className }: { direction: "left" | "right"; classN
   );
 }
 
+/**
+ * The child waiting at the window, and the way to swap whose shop this is.
+ * A photo that has not been dropped in yet falls back to the initial rather
+ * than a broken tile, so a new player can be added before their picture is.
+ */
+function PlayerFace({ player, cheering, onSwitch }: { player: Player; cheering: boolean; onSwitch: () => void }) {
+  // Keyed by player id upstream, so a switch remounts this with a clean slate.
+  const [missing, setMissing] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={onSwitch}
+      aria-label={`${player.name} is serving - tap to switch`}
+      className={`shop-customer pointer-events-auto w-10 shrink-0 overflow-hidden rounded-full shadow-md transition-transform active:scale-95 sm:w-16 ${
+        cheering ? "animate-wobble" : ""
+      }`}
+    >
+      {missing ? (
+        <span className="flex aspect-square w-full items-center justify-center bg-strawberry font-display text-lg text-vanilla sm:text-3xl">
+          {player.name.charAt(0)}
+        </span>
+      ) : (
+        <Image
+          src={player.photo}
+          alt={player.name}
+          width={64}
+          height={64}
+          priority
+          onError={() => setMissing(true)}
+          className="block h-auto w-full"
+        />
+      )}
+    </button>
+  );
+}
+
 function NextButton({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -429,19 +520,21 @@ function ShopSign({
   coins,
   reward,
   rewardKey,
+  playerName,
   onToggleMuted,
 }: {
   muted: boolean;
   coins: number;
   reward: number | null;
   rewardKey: number;
+  playerName: string;
   onToggleMuted: () => void;
 }) {
   return (
     <header className="shop-header relative flex shrink-0 items-center justify-between gap-3 rounded-[1.5rem] px-3 pt-3 pb-4 sm:rounded-[2rem] sm:px-5 sm:pt-4 sm:pb-5">
       <div className="awning shop-awning absolute inset-x-0 top-0 -z-10 h-14 rounded-t-[1.5rem] shadow-lg sm:h-16 sm:rounded-t-[2rem]" aria-hidden="true" />
       <h1 className="shop-title rounded-2xl bg-cocoa px-3 py-2 font-display text-base leading-tight text-butter shadow-[0_5px_0_rgba(74,44,42,0.35)] sm:px-5 sm:py-3 sm:text-2xl lg:text-3xl">
-        Mila&apos;s Ice Cream Shop
+        {playerName}&apos;s Ice Cream Shop
       </h1>
       <div className="flex items-center gap-2">
         <CoinCounter coins={coins} reward={reward} rewardKey={rewardKey} />

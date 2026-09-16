@@ -20,6 +20,27 @@
 :root {
   color-scheme: light;
   --sticker-depth: 7px;
+  /* The parlour floor and the counter behind the dessert, lit from the shop's
+     own colour. */
+  --shop-floor: #fff4e2;
+  --shop-glow: rgba(255, 111, 165, 0.24);
+  --shop-glow-far: rgba(123, 198, 255, 0.22);
+  --shop-stage: #ffe9d2;
+}
+
+/*
+ * Whose shop it is repaints the place. Only the identity colours move - the
+ * awning stripe, the accent and the floor glow. Mint, butter and the hurry-up
+ * orange stay put everywhere, because those carry meaning (ready, picked, hurry)
+ * rather than belonging to a child.
+ */
+html[data-player="norden"] {
+  --color-strawberry: #4aa8f5;
+  --color-cherry: #1f6ed6;
+  --shop-floor: #eaf3fd;
+  --shop-glow: rgba(74, 168, 245, 0.26);
+  --shop-glow-far: rgba(140, 228, 255, 0.24);
+  --shop-stage: #d9e9fb;
 }
 
 html,
@@ -28,11 +49,11 @@ body {
 }
 
 body {
-  background-color: var(--color-cream);
-  /* Parlor floor: soft strawberry glow over a faint dot tile. */
+  background-color: var(--shop-floor);
+  /* Parlor floor: soft glow in the shop's own colour over a faint dot tile. */
   background-image:
-    radial-gradient(120% 80% at 50% -10%, rgba(255, 111, 165, 0.24), transparent 62%),
-    radial-gradient(90% 60% at 100% 100%, rgba(123, 198, 255, 0.22), transparent 60%),
+    radial-gradient(120% 80% at 50% -10%, var(--shop-glow), transparent 62%),
+    radial-gradient(90% 60% at 100% 100%, var(--shop-glow-far), transparent 60%),
     radial-gradient(circle at 50% 50%, rgba(74, 44, 42, 0.06) 1.6px, transparent 1.7px);
   background-size: auto, auto, 26px 26px;
   color: var(--color-cocoa);

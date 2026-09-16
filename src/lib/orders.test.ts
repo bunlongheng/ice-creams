@@ -13,6 +13,7 @@ import {
   bestMatch,
   emptyOrderBook,
   makeOrder,
+  describeOrder,
   orderStage,
   ordersReducer,
   scoreOrder,
@@ -260,5 +261,24 @@ describe("orders", () => {
     ].reduce((state, action) => creationReducer(state, action as never), emptyCreation());
 
     expect(scoreOrder(order, creation, T0).coins).toBe(perfectCoins(order));
+  });
+});
+
+describe("describeOrder", () => {
+  const order = (vesselId: string, flavorIds: string[], toppingIds: string[] = []): Order =>
+    ({ id: 1, vesselId, flavorIds, toppingIds, createdAt: T0 }) as Order;
+
+  it("reads as a sentence, because it is spoken out loud", () => {
+    expect(describeOrder(order("waffle-cone", ["banana"]))).toBe("a waffle cone of banana");
+  });
+
+  it("says 'an' before a vowel", () => {
+    expect(describeOrder(order("egg-carton", ["lemon"]))).toBe("an egg carton of lemon");
+  });
+
+  it("names every topping the ticket asked for", () => {
+    expect(describeOrder(order("cup", ["mint"], ["hot-fudge", "cherry"]))).toBe(
+      "a cup of mint chip with hot fudge and cherry on top",
+    );
   });
 });

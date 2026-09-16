@@ -12,6 +12,7 @@ class SoundBoard {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
   private muted: boolean | null = null;
+  private voice: SpeechSynthesisVoice | null = null;
   private readonly listeners = new Set<() => void>();
 
   /** Subscribe/getSnapshot pair for React's useSyncExternalStore. */
@@ -37,12 +38,53 @@ class SoundBoard {
 
   setMuted(muted: boolean): void {
     this.muted = muted;
+    if (muted) this.hush();
     try {
       window.localStorage.setItem(STORAGE_KEY, muted ? "1" : "0");
     } catch {
       // Storage is optional; the toggle still works for this session.
     }
     for (const listener of this.listeners) listener();
+  }
+
+  /**
+   * A warm, clear English voice reads best. Devices populate the list lazily,
+   * so this is looked up on the first sentence rather than in the constructor.
+   */
+  private pickVoice(): SpeechSynthesisVoice | null {
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length === 0) return null;
+    for (const name of ["Samantha", "Karen", "Moira", "Google UK English Female"]) {
+      const match = voices.find((voice) => voice.name === name);
+      if (match) return match;
+    }
+    return voices.find((voice) => voice.lang.startsWith("en")) ?? voices[0] ?? null;
+  }
+
+  /** Stops whatever is being said. Muting and the next tap both use this. */
+  hush(): void {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+  }
+
+  /**
+   * Says something out loud. She cannot read the label under a picture, so the
+   * app reads it for her - "Waffle Cone", "Cookies and Cream", "Cherry on Top".
+   */
+  speak(text: string): void {
+    if (!text || this.isMuted()) return;
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+
+    // A toddler taps faster than a sentence plays, so the newest name wins
+    // instead of queueing up a backlog of everything she touched.
+    this.hush();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    this.voice ??= this.pickVoice();
+    if (this.voice) utterance.voice = this.voice;
+    utterance.rate = 0.9; // Unhurried enough for a two-year-old to catch.
+    utterance.pitch = 1.15;
+    window.speechSynthesis.speak(utterance);
   }
 
   private ensure(): AudioContext | null {

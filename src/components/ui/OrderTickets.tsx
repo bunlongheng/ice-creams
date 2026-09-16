@@ -94,6 +94,16 @@ export function OrderTickets({ orders, now, wantedFlavors, wantedVessel, wantedT
               })}
             </span>
 
+            {/* Two pale yellow scoops look identical on a small ticket, so the
+                flavour is spelled out as well. She cannot read it - this is for
+                whoever is scooping with her. */}
+            <span
+              aria-hidden="true"
+              className="max-w-[11rem] truncate text-[9px] leading-tight font-black tracking-wide text-cocoa/70 sm:max-w-[14rem] sm:text-[11px]"
+            >
+              {flavors.map((flavor) => flavor.name).join(" + ")}
+            </span>
+
             {/* How much patience is left, as a bar rather than a number. */}
             <span aria-hidden="true" className="h-1.5 w-full overflow-hidden rounded-full bg-cocoa/10">
               <span

@@ -294,6 +294,8 @@ export function describeOrder(order: Order): string {
   const flavors = order.flavorIds.map((id) => getFlavor(id)?.name ?? id).join(", ");
   const vessel = getVessel(order.vesselId)?.name ?? order.vesselId;
   const toppings = order.toppingIds.map((id) => getTopping(id)?.name ?? id);
-  const base = `a ${vessel.toLowerCase()} of ${flavors.toLowerCase()}`;
+  // This is read out loud now, so "an egg carton" has to sound right.
+  const article = /^[aeiou]/i.test(vessel) ? "an" : "a";
+  const base = `${article} ${vessel.toLowerCase()} of ${flavors.toLowerCase()}`;
   return toppings.length > 0 ? `${base} with ${toppings.join(" and ").toLowerCase()}` : base;
 }
