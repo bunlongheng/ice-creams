@@ -19,6 +19,8 @@ interface OrderTicketsProps {
   wantedFlavors: readonly string[];
   wantedVessel: string | null;
   wantedToppings: readonly string[];
+  /** How long this shop's customers wait - Norden's hold on longer. */
+  patienceMs?: number;
 }
 
 /** Calm, then hurry-up. The ring around a ticket is the only clock she needs. */
@@ -42,7 +44,14 @@ function Wanted({ done, children }: { done: boolean; children: React.ReactNode }
  * paper tickets. Most ask for a flavour and a container; some add a topping,
  * and the occasional show-off wants two.
  */
-export function OrderTickets({ orders, now, wantedFlavors, wantedVessel, wantedToppings }: OrderTicketsProps) {
+export function OrderTickets({
+  orders,
+  now,
+  wantedFlavors,
+  wantedVessel,
+  wantedToppings,
+  patienceMs = PATIENCE_MS,
+}: OrderTicketsProps) {
   return (
     <ul className="flex w-fit flex-col gap-1.5 sm:gap-2" aria-label="Orders waiting">
       {orders.map((order, index) => {
@@ -56,13 +65,13 @@ export function OrderTickets({ orders, now, wantedFlavors, wantedVessel, wantedT
         const ready = flavorDone && vesselDone && toppingsDone;
         // Something on the counter already belongs to this ticket - she is on it.
         const preparing = !ready && (flavorDone || vesselDone);
-        const stage = orderStage(order, now);
-        const left = Math.max(1 - orderAge(order, now) / PATIENCE_MS, 0);
+        const stage = orderStage(order, now, patienceMs);
+        const left = Math.max(1 - orderAge(order, now) / patienceMs, 0);
 
         return (
           <li
             key={order.id}
-            aria-label={`Order: ${describeOrder(order)}, ${secondsLeft(order, now)} seconds left${
+            aria-label={`Order: ${describeOrder(order)}, ${secondsLeft(order, now, patienceMs)} seconds left${
               ready ? " - ready to serve" : preparing ? " - preparing" : ""
             }`}
             data-ready={ready}

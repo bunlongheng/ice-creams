@@ -13,6 +13,7 @@
  */
 import { getFlavor, getTopping, getVessel, type VesselId } from "./catalog";
 import type { Creation } from "./creation";
+import { CALM, type Mode } from "./players";
 import { makeRng } from "./random";
 
 /** Flavours a customer will ask for - the ones a toddler can tell apart. */
@@ -83,9 +84,11 @@ export const COINS_FOR_TOPPING = 1;
 /** The simple two-item ticket, filled exactly: one coin to serve plus both bonuses. */
 export const COINS_FOR_PERFECT = COINS_FOR_SERVING + COINS_FOR_FLAVOR + COINS_FOR_VESSEL;
 
-/** The calm minute, then the hurry-up minute, then the customer leaves. */
+/** The calm minute, then the hurry-up, then the customer leaves. How long the
+ * hurry-up lasts is the shop's own - Norden's customers hold on a little longer
+ * so a fifth ticket has somewhere to sit. */
 export const CALM_MS = 60_000;
-export const PATIENCE_MS = 120_000;
+export const PATIENCE_MS = CALM.patienceMs;
 
 /** Tip brackets: the quicker it lands, the bigger the thank you. */
 const TIPS: readonly [maxAgeMs: number, coins: number][] = [
@@ -114,6 +117,8 @@ export interface Reward {
   coins: number;
   /** Part of `coins` that was a speed tip. */
   tip: number;
+  /** Part of `coins` that was the on-fire bonus. */
+  bonus?: number;
   /** The order this serve filled, if it matched one at all. */
   orderId: number | null;
   /** True once every flavour on the ticket is in the ice cream. */
@@ -129,15 +134,15 @@ export interface Reward {
 
 export const orderAge = (order: Order, now: number): number => Math.max(now - order.createdAt, 0);
 
-export function orderStage(order: Order, now: number): OrderStage {
+export function orderStage(order: Order, now: number, patienceMs = PATIENCE_MS): OrderStage {
   const age = orderAge(order, now);
-  if (age >= PATIENCE_MS) return "gone";
+  if (age >= patienceMs) return "gone";
   return age >= CALM_MS ? "hurry" : "fresh";
 }
 
 /** How long this customer will still wait, in whole seconds. */
-export const secondsLeft = (order: Order, now: number): number =>
-  Math.max(Math.ceil((PATIENCE_MS - orderAge(order, now)) / 1000), 0);
+export const secondsLeft = (order: Order, now: number, patienceMs = PATIENCE_MS): number =>
+  Math.max(Math.ceil((patienceMs - orderAge(order, now)) / 1000), 0);
 
 export function tipFor(ageMs: number): number {
   for (const [maxAge, coins] of TIPS) if (ageMs < maxAge) return coins;
@@ -147,6 +152,10 @@ export function tipFor(ageMs: number): number {
 export interface OrderBook {
   queue: Order[];
   coins: number;
+  /** Fast serves in a row. A slow one puts the streak out. */
+  streak: number;
+  /** 1 normally, 2 once the streak is long enough to catch fire. */
+  level: number;
   /** The reward from the last serve, so the UI can show what was earned. */
   lastReward: Reward | null;
   /** Rising id, also used to seed each new order. */
@@ -181,14 +190,16 @@ export function makeOrder(id: number, createdAt: number): Order {
   return { id, flavorIds, vesselId, toppingIds, createdAt };
 }
 
-export function emptyOrderBook(now = Date.now()): OrderBook {
+export function emptyOrderBook(now = Date.now(), mode: Mode = CALM): OrderBook {
   return {
     // One customer is waiting when the shop opens. The rest take their time.
     queue: [makeOrder(1, now)],
     coins: 0,
+    streak: 0,
+    level: 1,
     lastReward: null,
     nextId: 2,
-    nextArrivalAt: now + ARRIVAL_EVERY_MS,
+    nextArrivalAt: now + mode.arrivalEveryMs,
   };
 }
 
@@ -241,17 +252,33 @@ export function bestMatch(queue: readonly Order[], creation: Creation, now: numb
 }
 
 export type OrderAction =
-  | { type: "serve"; creation: Creation; now: number }
-  | { type: "tick"; now: number }
-  | { type: "reset"; now: number };
+  | { type: "serve"; creation: Creation; now: number; mode?: Mode }
+  | { type: "tick"; now: number; mode?: Mode }
+  | { type: "reset"; now: number; mode?: Mode }
+  /**
+   * Give every customer back the time the shop was shut. Without this a pause
+   * for breakfast would come back to an empty counter, because patience is
+   * measured against the wall clock.
+   */
+  | { type: "resume"; by: number };
 
 export function ordersReducer(state: OrderBook, action: OrderAction): OrderBook {
   switch (action.type) {
     case "serve": {
-      const reward = bestMatch(state.queue, action.creation, action.now);
+      const mode = action.mode ?? CALM;
+      const base = bestMatch(state.queue, action.creation, action.now);
+
+      // A tip means it went out fast, which is what keeps the streak alive. A
+      // slow serve puts it out - that is the whole game in Norden's shop.
+      const streak = base.tip > 0 ? state.streak + 1 : 0;
+      const onFire = mode.fireAt > 0 && streak >= mode.fireAt;
+      const bonus = onFire ? mode.fireBonus : 0;
+      const reward = bonus > 0 ? { ...base, coins: base.coins + bonus, bonus } : { ...base, bonus: 0 };
+      const level = onFire ? 2 : 1;
+
       // A serve that matched nothing still pays, and leaves the queue alone.
       if (reward.orderId === null) {
-        return { ...state, coins: state.coins + reward.coins, lastReward: reward };
+        return { ...state, coins: state.coins + reward.coins, streak, level, lastReward: reward };
       }
 
       // Filling an order does not summon a replacement - the next customer
@@ -260,26 +287,42 @@ export function ordersReducer(state: OrderBook, action: OrderAction): OrderBook 
         ...state,
         queue: state.queue.filter((order) => order.id !== reward.orderId),
         coins: state.coins + reward.coins,
+        streak,
+        level,
         lastReward: reward,
       };
     }
 
     case "tick": {
-      const staying = state.queue.filter((order) => orderStage(order, action.now) !== "gone");
-      const arriving = action.now >= state.nextArrivalAt && staying.length < QUEUE_SIZE;
-      if (!arriving && staying.length === state.queue.length) return state;
+      const mode = action.mode ?? CALM;
+      const staying = state.queue.filter((order) => orderStage(order, action.now, mode.patienceMs) !== "gone");
+      // Letting a customer walk out is what breaks a streak the slow way.
+      const walkedOut = staying.length < state.queue.length;
+      const arriving = action.now >= state.nextArrivalAt && staying.length < mode.queueSize;
+      if (!arriving && !walkedOut) return state;
 
       const queue = arriving ? [...staying, makeOrder(state.nextId, action.now)] : staying;
       return {
         ...state,
         queue,
+        streak: walkedOut ? 0 : state.streak,
+        level: walkedOut ? 1 : state.level,
         nextId: arriving ? state.nextId + 1 : state.nextId,
-        nextArrivalAt: arriving ? action.now + ARRIVAL_EVERY_MS : state.nextArrivalAt,
+        nextArrivalAt: arriving ? action.now + mode.arrivalEveryMs : state.nextArrivalAt,
       };
     }
 
+    case "resume":
+      return {
+        ...state,
+        queue: state.queue.map((order) => ({ ...order, createdAt: order.createdAt + action.by })),
+        nextArrivalAt: state.nextArrivalAt + action.by,
+      };
+
+    // Handing the shop to the other child clears the counter and the streak,
+    // but the till is the shop's, not theirs, so the coins stay.
     case "reset":
-      return { ...emptyOrderBook(action.now), coins: state.coins };
+      return { ...emptyOrderBook(action.now, action.mode), coins: state.coins };
 
     default:
       return state;
