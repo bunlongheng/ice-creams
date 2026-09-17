@@ -4,16 +4,43 @@
  * with her own name over the door.
  */
 
+/**
+ * How busy the counter gets. Every child plays the same shop at their own
+ * speed: one calm, one rushing.
+ */
+export interface Mode {
+  /** How often a new customer walks in. */
+  arrivalEveryMs: number;
+  /** The most tickets the rail will hold at once. */
+  queueSize: number;
+  /** How long a customer waits before giving up. */
+  patienceMs: number;
+  /** Fast serves in a row before the shop catches fire. 0 means never. */
+  fireAt: number;
+  /** Extra coins on every serve while on fire. */
+  fireBonus: number;
+}
+
+/** Mila's shop: one customer a minute, no rush, nothing to chase. */
+export const CALM: Mode = { arrivalEveryMs: 60_000, queueSize: 3, patienceMs: 120_000, fireAt: 0, fireBonus: 0 };
+/**
+ * Norden's shop: twice the traffic, a rail of five, and a streak to keep alive.
+ * His customers wait half a minute longer than Mila's - not to be kinder, but
+ * because at one every thirty seconds that is what lets a fifth ticket stack up.
+ */
+export const RUSH: Mode = { arrivalEveryMs: 30_000, queueSize: 5, patienceMs: 150_000, fireAt: 3, fireBonus: 2 };
+
 export interface Player {
   id: string;
   name: string;
   /** Lives in `public/`. A missing file falls back to the initial. */
   photo: string;
+  mode: Mode;
 }
 
 export const PLAYERS: readonly Player[] = [
-  { id: "mila", name: "Mila", photo: "/mila.png" },
-  { id: "norden", name: "Norden", photo: "/norden.png" },
+  { id: "mila", name: "Mila", photo: "/mila.png", mode: CALM },
+  { id: "norden", name: "Norden", photo: "/norden.png", mode: RUSH },
 ] as const;
 
 const STORAGE_KEY = "ice-creams:player";

@@ -92,6 +92,8 @@ export function Shop() {
    * while she is not looking.
    */
   const [now, setNow] = useState(0);
+  /** Breakfast. Everything greys out and no customer ages while this is on. */
+  const [paused, setPaused] = useState(false);
   /** Whose shop it is - the default on the server, then whoever played last. */
   const player = useSyncExternalStore(players.subscribe, players.get, players.getOnServer);
   const muted = useSyncExternalStore(sounds.subscribe, sounds.isMuted, sounds.isMutedOnServer);
@@ -119,29 +121,60 @@ export function Shop() {
     [],
   );
 
+  /**
+   * Shutting the counter is not enough on its own: patience is measured against
+   * the wall clock, so coming back from breakfast would find every customer
+   * gone. Remember when the shop closed and hand that time straight back.
+   */
+  const stoppedAt = useRef(0);
+  const stopClock = useCallback(() => {
+    if (stoppedAt.current === 0) stoppedAt.current = Date.now();
+  }, []);
+  const startClock = useCallback(() => {
+    if (stoppedAt.current === 0) return;
+    dispatchOrders({ type: "resume", by: Date.now() - stoppedAt.current });
+    stoppedAt.current = 0;
+  }, []);
+
   useEffect(() => {
     let timer = 0;
+    const mode = player.mode;
     const tick = () => {
-      if (document.hidden) return;
+      if (document.hidden || paused) return;
       const stamp = Date.now();
       setNow(stamp);
-      dispatchOrders({ type: "tick", now: stamp });
+      dispatchOrders({ type: "tick", now: stamp, mode });
     };
-    const start = () => {
+    const run = () => {
       window.clearInterval(timer);
       // Patience is measured in minutes, so once a second is plenty.
       timer = window.setInterval(tick, 1000);
       tick();
     };
-    const onVisibility = () => (document.hidden ? window.clearInterval(timer) : start());
+    // A hidden tab and a tapped pause are the same thing to the shop.
+    const onVisibility = () => {
+      if (document.hidden) {
+        stopClock();
+        window.clearInterval(timer);
+      } else {
+        startClock();
+        if (!paused) run();
+      }
+    };
 
-    start();
+    if (paused) {
+      stopClock();
+    } else {
+      startClock();
+      run();
+    }
+
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, []);
+  }, [paused, player.mode, stopClock, startClock]);
 
   /**
    * Repaint the whole page for whoever is serving. This lives on the document
@@ -199,11 +232,26 @@ export function Shop() {
     sounds.play("pick");
   }, []);
 
-  /** Tapping the face at the window hands the shop to the next child. */
+  /**
+   * Tapping the face at the window hands the shop to the next child. They get
+   * a fresh counter running at their own pace; the till is the shop's, so the
+   * coins stay put.
+   */
   const switchPlayer = useCallback(() => {
     const next = players.next();
+    dispatchOrders({ type: "reset", now: Date.now(), mode: next.mode });
+    dispatch({ type: "startOver" });
     sounds.play("pick");
     sounds.speak(`${next.name}'s Ice Cream Shop!`);
+  }, []);
+
+  /** Breakfast break. The shop shuts, nobody ages, nobody leaves. */
+  const togglePaused = useCallback(() => {
+    setPaused((was) => {
+      sounds.play(was ? "pick" : "reset");
+      sounds.speak(was ? "Back to work!" : "Shop is closed. See you soon!");
+      return !was;
+    });
   }, []);
 
   const choose = useCallback(
@@ -240,13 +288,13 @@ export function Shop() {
     // Only ring the till if the guard actually let the serve through, or a
     // double tap would pay for the same ice cream twice.
     if (!act({ type: "serve" }, "serve", SERVE_GUARD_MS)) return;
-    dispatchOrders({ type: "serve", creation, now: Date.now() });
+    dispatchOrders({ type: "serve", creation, now: Date.now(), mode: player.mode });
     // The coins land a beat after the fanfare, so both are audible.
     coinTimer.current = window.setTimeout(() => sounds.play("coin"), 420);
     // Then the counter clears itself and the next order starts - a two-year-old
     // should not have to find a button to keep playing.
     resetTimer.current = window.setTimeout(() => dispatch({ type: "startOver" }), CELEBRATION_MS);
-  }, [act, creation]);
+  }, [act, creation, player.mode]);
   const startOver = useCallback(() => act({ type: "startOver" }, "reset"), [act]);
 
   const styleChoices = useMemo<Choice[]>(
@@ -306,19 +354,30 @@ export function Shop() {
   }, [served, reward, creation.servedCount, creation.toppings.length, creation.vessel, creation.flavors, creation.style]);
 
   return (
-    <div className="shop-shell mx-auto flex h-dvh w-full max-w-[1400px] flex-col gap-3 overflow-hidden p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:gap-4 sm:p-5">
+    <>
+      <div
+        className={`shop-shell mx-auto flex h-dvh w-full max-w-[1400px] flex-col gap-3 overflow-hidden p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:gap-4 sm:p-5 ${
+          paused ? "shop-shut" : ""
+        }`}
+        // While the shop is shut the only live control is the one on the overlay.
+        inert={paused || undefined}
+      >
       <ShopSign
         muted={muted}
+        paused={paused}
         playerName={player.name}
+        level={orders.level}
+        streak={orders.streak}
         coins={orders.coins}
         reward={served && reward ? reward.coins : null}
         rewardKey={creation.servedCount}
         onToggleMuted={toggleMuted}
+        onTogglePaused={togglePaused}
       />
 
       <main
         className={`grid min-h-0 flex-1 gap-3 sm:gap-4 sm:landscape:grid-cols-[minmax(0,1fr)_minmax(320px,42%)] sm:landscape:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_minmax(380px,460px)] lg:grid-rows-1 ${
-          served ? "grid-rows-1" : "grid-rows-[minmax(180px,40%)_minmax(0,1fr)]"
+          served ? "grid-rows-1" : "grid-rows-[minmax(132px,34%)_minmax(0,1fr)]"
         }`}
       >
         <section
@@ -335,6 +394,7 @@ export function Shop() {
               wantedFlavors={creation.flavors}
               wantedVessel={creation.vessel}
               wantedToppings={creation.toppings}
+              patienceMs={player.mode.patienceMs}
             />
 
             <div className="flex min-w-0 items-end gap-1.5 sm:gap-2">
@@ -386,7 +446,7 @@ export function Shop() {
 
           {/* Selected cards tilt and carry a ring, so give them room sideways
               and never let that turn into a horizontal scrollbar. */}
-          <div className="shop-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pb-2">
+          <div className="shop-scroll min-h-[6.75rem] flex-1 overflow-x-hidden overflow-y-auto px-2 pb-2">
             {creation.step === "style" && (
               <ChoiceGrid label="Ice cream style" choices={styleChoices} selected={creation.style ? [creation.style] : []} onChoose={(id) => choose("style", id)} columns="wide" />
             )}
@@ -401,7 +461,7 @@ export function Shop() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="shop-serve-row flex items-center gap-2 sm:gap-3">
             {creation.step !== "style" && !served && (
               <button
                 type="button"
@@ -446,7 +506,10 @@ export function Shop() {
           </div>
         </section>
       </main>
-    </div>
+      </div>
+
+      {paused && <PausedOverlay playerName={player.name} onResume={togglePaused} />}
+    </>
   );
 }
 
@@ -479,7 +542,7 @@ function PlayerFace({ player, cheering, onSwitch }: { player: Player; cheering: 
       type="button"
       onClick={onSwitch}
       aria-label={`${player.name} is serving - tap to switch`}
-      className={`shop-customer pointer-events-auto w-10 shrink-0 overflow-hidden rounded-full shadow-md transition-transform active:scale-95 sm:w-16 ${
+      className={`shop-customer pointer-events-auto w-11 shrink-0 overflow-hidden rounded-full shadow-md transition-transform active:scale-95 sm:w-16 ${
         cheering ? "animate-wobble" : ""
       }`}
     >
@@ -515,45 +578,135 @@ function NextButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+/** The flame that says the streak is alive. Norden's shop only. */
+function FireBadge({ streak }: { streak: number }) {
+  return (
+    <span
+      className="shop-fire animate-pop-in flex shrink-0 items-center gap-1 rounded-2xl bg-cocoa px-2.5 py-2 shadow-[0_5px_0_rgba(74,44,42,0.22)] sm:px-3 sm:py-2.5"
+      aria-label={`On fire - ${streak} fast serves in a row, level 2`}
+    >
+      <svg viewBox="0 0 24 24" className="shop-flame h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true">
+        <path
+          d="M12 2c2.5 4 1 5.5 0 6.5C10.5 7 9 6 9 4 6.5 6 5 9 5 12a7 7 0 1014 0c0-3.5-2.5-6-7-10z"
+          fill="#FF8A3D"
+        />
+        <path d="M12 12c1.6 1.8 1 3-.2 3.8-1 .7-2.3.2-2.3-1.2 0-1.6 1.4-2 2.5-2.6z" fill="#FFD25E" />
+      </svg>
+      <span className="font-body text-base leading-none font-black text-butter tabular-nums sm:text-lg" aria-hidden="true">
+        x{streak}
+      </span>
+    </span>
+  );
+}
+
 function ShopSign({
   muted,
+  paused,
   coins,
   reward,
   rewardKey,
   playerName,
+  level,
+  streak,
   onToggleMuted,
+  onTogglePaused,
 }: {
   muted: boolean;
+  paused: boolean;
   coins: number;
   reward: number | null;
   rewardKey: number;
   playerName: string;
+  level: number;
+  streak: number;
   onToggleMuted: () => void;
+  onTogglePaused: () => void;
 }) {
   return (
-    <header className="shop-header relative flex shrink-0 items-center justify-between gap-3 rounded-[1.5rem] px-3 pt-3 pb-4 sm:rounded-[2rem] sm:px-5 sm:pt-4 sm:pb-5">
-      <div className="awning shop-awning absolute inset-x-0 top-0 -z-10 h-14 rounded-t-[1.5rem] shadow-lg sm:h-16 sm:rounded-t-[2rem]" aria-hidden="true" />
-      <h1 className="shop-title rounded-2xl bg-cocoa px-3 py-2 font-display text-base leading-tight text-butter shadow-[0_5px_0_rgba(74,44,42,0.35)] sm:px-5 sm:py-3 sm:text-2xl lg:text-3xl">
-        {playerName}&apos;s Ice Cream Shop
-      </h1>
-      <div className="flex items-center gap-2">
-        <CoinCounter coins={coins} reward={reward} rewardKey={rewardKey} />
-        <button
-          type="button"
-          onClick={onToggleMuted}
-          className="sticker shop-icon-button flex h-12 w-12 items-center justify-center rounded-2xl bg-vanilla sm:h-14 sm:w-14"
-          aria-label={muted ? "Turn sounds on" : "Turn sounds off"}
-        >
-          <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
-            <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" />
-            {muted ? (
-              <path d="M17 9l4 6M21 9l-4 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-            ) : (
-              <path d="M17 8.5a5 5 0 010 7M19.5 6a8.5 8.5 0 010 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-            )}
-          </svg>
-        </button>
+    <header className="shop-header relative z-10 flex shrink-0 flex-col">
+      {/* The roof gets its own strip. Its scalloped edge hangs 13px below, so
+          everything else clears it rather than sitting in the fringe. */}
+      <div
+        className="awning shop-awning relative h-9 w-full rounded-t-[1.5rem] shadow-lg sm:h-11 sm:rounded-t-[2rem]"
+        aria-hidden="true"
+      />
+
+      <div className="shop-header-row mt-5 flex flex-wrap items-center justify-between gap-x-2 gap-y-2 px-1 sm:mt-6 sm:gap-x-3 sm:px-2">
+        <h1 className="shop-title min-w-0 rounded-2xl bg-cocoa px-3 py-2 font-display text-base leading-tight text-butter shadow-[0_5px_0_rgba(74,44,42,0.35)] sm:px-5 sm:py-3 sm:text-2xl lg:text-3xl">
+          {playerName}&apos;s Ice Cream Shop
+        </h1>
+
+        <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+          {level > 1 && <FireBadge streak={streak} />}
+          <CoinCounter coins={coins} reward={reward} rewardKey={rewardKey} />
+          <button
+            type="button"
+            onClick={onTogglePaused}
+            className="sticker shop-icon-button flex h-12 w-12 items-center justify-center rounded-2xl bg-vanilla sm:h-14 sm:w-14"
+            aria-label={paused ? "Open the shop again" : "Pause - close the shop for a bit"}
+          >
+            <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
+              {paused ? (
+                <path d="M7 4.5l13 7.5-13 7.5z" fill="currentColor" />
+              ) : (
+                <>
+                  <rect x="6" y="4.5" width="4.4" height="15" rx="1.8" fill="currentColor" />
+                  <rect x="13.6" y="4.5" width="4.4" height="15" rx="1.8" fill="currentColor" />
+                </>
+              )}
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={onToggleMuted}
+            className="sticker shop-icon-button flex h-12 w-12 items-center justify-center rounded-2xl bg-vanilla sm:h-14 sm:w-14"
+            aria-label={muted ? "Turn sounds on" : "Turn sounds off"}
+          >
+            <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
+              <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" />
+              {muted ? (
+                <path d="M17 9l4 6M21 9l-4 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+              ) : (
+                <path d="M17 8.5a5 5 0 010 7M19.5 6a8.5 8.5 0 010 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+              )}
+            </svg>
+          </button>
+        </div>
       </div>
     </header>
+  );
+}
+
+/**
+ * Breakfast. The shop greys out behind this and nothing ages, so a plate of
+ * eggs cannot cost her the counter.
+ */
+function PausedOverlay({ playerName, onResume }: { playerName: string; onResume: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-label="The shop is closed"
+    >
+      <div className="absolute inset-0 bg-cocoa/45 backdrop-blur-[3px]" aria-hidden="true" />
+      <div className="animate-pop-in relative flex w-full max-w-sm flex-col items-center gap-5 rounded-[2rem] bg-vanilla px-6 py-8 text-center shadow-2xl sm:gap-6 sm:px-8 sm:py-10">
+        <p className="font-display text-2xl leading-tight text-cocoa sm:text-3xl">Back in a minute!</p>
+        <p className="font-body text-sm font-bold text-cocoa/70 sm:text-base">
+          {playerName}&apos;s shop is closed. Nobody is waiting and nobody will leave.
+        </p>
+        <button
+          type="button"
+          onClick={onResume}
+          autoFocus
+          className="sticker flex h-16 w-full items-center justify-center gap-2 bg-mint font-display text-2xl text-cocoa sm:h-20 sm:text-3xl"
+        >
+          <svg viewBox="0 0 24 24" className="h-7 w-7" aria-hidden="true">
+            <path d="M7 4.5l13 7.5-13 7.5z" fill="currentColor" />
+          </svg>
+          Open up!
+        </button>
+      </div>
+    </div>
   );
 }

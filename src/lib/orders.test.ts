@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getFlavor, getVessel } from "./catalog";
 import { creationReducer, emptyCreation, type Creation } from "./creation";
+import { CALM, RUSH } from "./players";
 import {
   ARRIVAL_EVERY_MS,
   CALM_MS,
@@ -19,6 +20,7 @@ import {
   scoreOrder,
   orderSize,
   secondsLeft,
+  type OrderBook,
   tipFor,
   type Order,
 } from "./orders";
@@ -280,5 +282,133 @@ describe("describeOrder", () => {
     expect(describeOrder(order("cup", ["mint"], ["hot-fudge", "cherry"]))).toBe(
       "a cup of mint chip with hot fudge and cherry on top",
     );
+  });
+});
+
+describe("the two shops", () => {
+  /**
+   * Bring the next customer in and fill their ticket the instant they arrive,
+   * which is what earns the top tip and keeps a streak alive.
+   */
+  const fastServe = (book: OrderBook, at: number, mode = RUSH): OrderBook => {
+    const waiting = book.queue.length > 0 ? book : ordersReducer(book, { type: "tick", now: at, mode });
+    return ordersReducer(waiting, { type: "serve", creation: fill(waiting.queue[0]!), now: at, mode });
+  };
+
+  it("Norden's customers arrive twice as often as Mila's", () => {
+    expect(emptyOrderBook(T0, RUSH).nextArrivalAt - T0).toBe(RUSH.arrivalEveryMs);
+    expect(emptyOrderBook(T0, CALM).nextArrivalAt - T0).toBe(CALM.arrivalEveryMs);
+    expect(RUSH.arrivalEveryMs * 2).toBe(CALM.arrivalEveryMs);
+  });
+
+  it("stacks a longer rail in the rush, and never past the cap", () => {
+    let book = emptyOrderBook(T0, RUSH);
+    let deepest = book.queue.length;
+    for (let i = 1; i <= 12; i++) {
+      book = ordersReducer(book, { type: "tick", now: T0 + i * RUSH.arrivalEveryMs, mode: RUSH });
+      deepest = Math.max(deepest, book.queue.length);
+      expect(book.queue.length).toBeLessThanOrEqual(RUSH.queueSize);
+    }
+    expect(deepest).toBe(RUSH.queueSize);
+    expect(RUSH.queueSize).toBeGreaterThan(CALM.queueSize);
+    // The cap only binds while customers outlast the gaps between them - drop
+    // the rush patience and the fifth ticket quietly stops happening.
+    expect(RUSH.patienceMs).toBeGreaterThan((RUSH.queueSize - 1) * RUSH.arrivalEveryMs);
+  });
+
+  it("catches fire after enough fast serves, and pays the bonus", () => {
+    let book = emptyOrderBook(T0, RUSH);
+    let at = T0;
+    for (let i = 1; i < RUSH.fireAt; i++) {
+      book = fastServe(book, at);
+      expect(book.streak).toBe(i);
+      expect(book.level).toBe(1);
+      expect(book.lastReward?.bonus).toBe(0);
+      at += RUSH.arrivalEveryMs;
+    }
+
+    book = fastServe(book, at);
+    expect(book.streak).toBe(RUSH.fireAt);
+    expect(book.level).toBe(2);
+    expect(book.lastReward?.bonus).toBe(RUSH.fireBonus);
+  });
+
+  it("puts the fire out when a serve is too slow", () => {
+    let book = emptyOrderBook(T0, RUSH);
+    let at = T0;
+    for (let i = 0; i < RUSH.fireAt; i++) {
+      book = fastServe(book, at);
+      at += RUSH.arrivalEveryMs;
+    }
+    expect(book.level).toBe(2);
+
+    // The customer arrives, then dawdles past every tip bracket.
+    const waiting = ordersReducer(book, { type: "tick", now: at, mode: RUSH });
+    const slow = ordersReducer(waiting, {
+      type: "serve",
+      creation: fill(waiting.queue[0]!),
+      now: at + CALM_MS + 1,
+      mode: RUSH,
+    });
+    expect(slow.lastReward?.tip).toBe(0);
+    expect(slow.streak).toBe(0);
+    expect(slow.level).toBe(1);
+  });
+
+  it("puts the fire out when a customer gives up and walks off", () => {
+    let book = emptyOrderBook(T0, RUSH);
+    let at = T0;
+    for (let i = 0; i < RUSH.fireAt; i++) {
+      book = fastServe(book, at);
+      at += RUSH.arrivalEveryMs;
+    }
+    expect(book.level).toBe(2);
+
+    const waiting = ordersReducer(book, { type: "tick", now: at, mode: RUSH });
+    const abandoned = ordersReducer(waiting, { type: "tick", now: at + RUSH.patienceMs + 1, mode: RUSH });
+    expect(abandoned.streak).toBe(0);
+    expect(abandoned.level).toBe(1);
+  });
+
+  it("never catches fire in Mila's calm shop", () => {
+    let book = emptyOrderBook(T0, CALM);
+    let at = T0;
+    for (let i = 0; i < 6; i++) {
+      book = fastServe(book, at, CALM);
+      expect(book.level).toBe(1);
+      expect(book.lastReward?.bonus).toBe(0);
+      at += CALM.arrivalEveryMs;
+    }
+  });
+
+  it("hands the shop over with a fresh counter but the same till", () => {
+    let book = emptyOrderBook(T0, CALM);
+    book = fastServe(book, T0, CALM);
+    const earned = book.coins;
+
+    const handed = ordersReducer(book, { type: "reset", now: T0, mode: RUSH });
+    expect(handed.coins).toBe(earned);
+    expect(handed.streak).toBe(0);
+    expect(handed.level).toBe(1);
+    expect(handed.nextArrivalAt - T0).toBe(RUSH.arrivalEveryMs);
+  });
+});
+
+describe("closing the shop for breakfast", () => {
+  it("hands back every second it was shut, so nobody leaves", () => {
+    const book = emptyOrderBook(T0, RUSH);
+    const breakfast = 25 * 60_000;
+    const resumed = ordersReducer(book, { type: "resume", by: breakfast });
+
+    // Without the shift this customer is long gone; with it, nothing changed.
+    expect(orderStage(book.queue[0]!, T0 + breakfast)).toBe("gone");
+    expect(orderStage(resumed.queue[0]!, T0 + breakfast)).toBe("fresh");
+    expect(secondsLeft(resumed.queue[0]!, T0 + breakfast)).toBe(secondsLeft(book.queue[0]!, T0));
+  });
+
+  it("pushes the next arrival back by the same amount", () => {
+    const book = emptyOrderBook(T0, RUSH);
+    const resumed = ordersReducer(book, { type: "resume", by: 90_000 });
+    expect(resumed.nextArrivalAt).toBe(book.nextArrivalAt + 90_000);
   });
 });
