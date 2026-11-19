@@ -356,7 +356,7 @@ export function Shop() {
   return (
     <>
       <div
-        className={`shop-shell mx-auto flex h-dvh w-full max-w-[1400px] flex-col gap-3 overflow-hidden p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:gap-4 sm:p-5 ${
+        className={`shop-shell mx-auto flex h-dvh w-full max-w-[1400px] flex-col gap-3 overflow-hidden pt-[max(0.75rem,env(safe-area-inset-top))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:gap-4 sm:pt-[max(1.25rem,env(safe-area-inset-top))] sm:pb-5 sm:pl-[max(1.25rem,env(safe-area-inset-left))] sm:pr-[max(1.25rem,env(safe-area-inset-right))] ${
           paused ? "shop-shut" : ""
         }`}
         // While the shop is shut the only live control is the one on the overlay.

@@ -187,7 +187,9 @@ body {
 @media (max-height: 540px) {
   .shop-shell {
     gap: 0.4rem;
-    padding: 0.4rem;
+    /* Sideways the notch and home bar move to the sides - keep the buttons clear. */
+    padding: max(0.4rem, env(safe-area-inset-top)) max(0.4rem, env(safe-area-inset-right)) max(0.4rem, env(safe-area-inset-bottom))
+      max(0.4rem, env(safe-area-inset-left));
   }
 
   .shop-header {
